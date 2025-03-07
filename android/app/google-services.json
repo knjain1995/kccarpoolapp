@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "436502697531",
+    "project_id": "kccarpoolapp",
+    "storage_bucket": "kccarpoolapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:436502697531:android:b8455351211fb1ac39ae1e",
+        "android_client_info": {
+          "package_name": "com.example.kccarpoolapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBszmZS4UBFjDslyYjDW7DkXZJ93iEb0vI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
