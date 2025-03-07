@@ -46,4 +46,4 @@ app.*.map.json
 
 
 # Added to stop uploading keys
-/lib/firebase_options.dart
+lib/firebase_options.dart
