@@ -1,66 +1,136 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_login/flutter_login.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 /// LoginScreen provides user authentication functionality using Firebase Auth.
-class LoginScreen extends StatelessWidget {
-  /// Firebase Authentication instance
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+class LoginScreen extends StatefulWidget {
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
 
-  /// Duration of animations on login screen
-  Duration get loginTime => Duration(milliseconds: 2000);
+class _LoginScreenState extends State<LoginScreen> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
+  bool isSignupMode = false; // Toggles between Login and Signup
+  String errorMessage = "";
 
   /// Function to authenticate user with Firebase.
-  Future<String?> _authUser(LoginData data) async {
+  Future<void> _authUser() async {
     try {
       await _auth.signInWithEmailAndPassword(
-        email: data.name,
-        password: data.password,
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
       );
-      return null; // Success, return null (no error message)
+      Navigator.of(context).pushReplacementNamed('/home');
     } catch (e) {
-      return 'Login failed. Please check your credentials.';
+      setState(() {
+        errorMessage = 'Login failed. Please check your credentials.';
+      });
     }
   }
 
   /// Function to handle user signup.
-  Future<String?> _signupUser(SignupData data) async {
+  Future<void> _signupUser() async {
+    if (_passwordController.text != _confirmPasswordController.text) {
+      setState(() {
+        errorMessage = 'Passwords do not match!';
+      });
+      return;
+    }
     try {
       await _auth.createUserWithEmailAndPassword(
-        email: data.name!,
-        password: data.password!,
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
       );
-      return null; // Signup successful
+      Navigator.of(context).pushReplacementNamed('/home');
     } catch (e) {
-      return 'Signup failed. Try a different email.';
+      setState(() {
+        errorMessage = 'Signup failed. Try a different email.';
+      });
     }
   }
 
   /// Function to handle password recovery.
-  Future<String?> _recoverPassword(String email) async {
+  Future<void> _recoverPassword() async {
+    if (_emailController.text.isEmpty) {
+      setState(() {
+        errorMessage = 'Please enter your email to reset password.';
+      });
+      return;
+    }
     try {
-      await _auth.sendPasswordResetEmail(email: email);
-      return null; // Password reset email sent
+      await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
+      setState(() {
+        errorMessage = 'Password reset email sent!';
+      });
     } catch (e) {
-      return 'Password recovery failed. Check your email.';
+      setState(() {
+        errorMessage = 'Password recovery failed. Check your email.';
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FlutterLogin(
-      title: 'kccarpoolapp',
-      theme: LoginTheme(
-        primaryColor: Colors.blue,
-        accentColor: Colors.white,
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                isSignupMode ? "Sign Up" : "Login",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 20),
+              TextField(
+                controller: _emailController,
+                decoration: InputDecoration(labelText: 'Email'),
+              ),
+              SizedBox(height: 10),
+              TextField(
+                controller: _passwordController,
+                decoration: InputDecoration(labelText: 'Password'),
+                obscureText: true,
+              ),
+              if (isSignupMode) ...[
+                SizedBox(height: 10),
+                TextField(
+                  controller: _confirmPasswordController,
+                  decoration: InputDecoration(labelText: 'Confirm Password'),
+                  obscureText: true,
+                ),
+              ],
+              SizedBox(height: 10),
+              Text(
+                errorMessage,
+                style: TextStyle(color: Colors.red),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: isSignupMode ? _signupUser : _authUser,
+                child: Text(isSignupMode ? "Sign Up" : "Login"),
+              ),
+              TextButton(
+                onPressed: _recoverPassword,
+                child: Text("Forgot Password?"),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    isSignupMode = !isSignupMode; // Toggle between login and signup
+                  });
+                },
+                child: Text(isSignupMode
+                    ? "Already have an account? Login"
+                    : "Don't have an account? Sign Up"),
+              ),
+            ],
+          ),
+        ),
       ),
-      onLogin: _authUser,
-      onSignup: _signupUser,
-      onRecoverPassword: _recoverPassword,
-      onSubmitAnimationCompleted: () {
-        // Navigate to the main app page after login
-        Navigator.of(context).pushReplacementNamed('/home');
-      },
     );
   }
 }
