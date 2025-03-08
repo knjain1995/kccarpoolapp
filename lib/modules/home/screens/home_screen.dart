@@ -1,13 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:kccarpoolapp/services/auth_service.dart'; // Import AuthService
 
-/// HomeScreen - Placeholder for the main app after login.
+/// HomeScreen - Main screen after user logs in.
 class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Home")),
-      body: Center(
-        child: Text("Welcome to the Home Screen!"),
+    return WillPopScope( // Prevents back navigation
+      onWillPop: () async => false, // Disable back button on Android
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text("Home"),
+          automaticallyImplyLeading: false, // Removes back button
+          actions: [
+            /// Logout button in the app bar
+            IconButton(
+              icon: Icon(Icons.logout),
+              onPressed: () => AuthService().logout(context), // Use AuthService
+              tooltip: "Logout",
+            ),
+          ],
+        ),
+        body: Center(
+          child: Text("Welcome to the Home Screen!"),
+        ),
       ),
     );
   }

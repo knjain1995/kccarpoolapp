@@ -1,36 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kccarpoolapp/services/auth_service.dart'; // Import AuthService
 
-/// LoginScreen provides user authentication functionality using Firebase Auth.
+/// LoginScreen provides user authentication functionality using Firebase Auth via AuthService.
 class LoginScreen extends StatefulWidget {
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final AuthService _authService = AuthService(); // Using AuthService for authentication
+  final TextEditingController _emailController = TextEditingController(text: 'knjain1995@gmail.com'); // Default test email (Remove before production)
+  final TextEditingController _passwordController = TextEditingController(text: 'Test@123'); // Default test password (Remove before production)
+  final TextEditingController _confirmPasswordController = TextEditingController(); // Used only in signup mode
   bool isSignupMode = false; // Toggles between Login and Signup
-  String errorMessage = "";
+  String errorMessage = ""; // Holds error messages to display to the user
 
-  /// Function to authenticate user with Firebase.
+  /// Function to handle user login using AuthService.
   Future<void> _authUser() async {
-    try {
-      await _auth.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      Navigator.of(context).pushReplacementNamed('/home');
-    } catch (e) {
+    String? error = await _authService.signIn(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+    );
+    if (error == null) {
+      Navigator.of(context).pushReplacementNamed('/home'); // Navigate to Home on success
+    } else {
       setState(() {
-        errorMessage = 'Login failed. Please check your credentials.';
+        errorMessage = error;
       });
     }
   }
 
-  /// Function to handle user signup.
+  /// Function to handle user signup using AuthService.
   Future<void> _signupUser() async {
     if (_passwordController.text != _confirmPasswordController.text) {
       setState(() {
@@ -38,35 +38,15 @@ class _LoginScreenState extends State<LoginScreen> {
       });
       return;
     }
-    try {
-      await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+    String? error = await _authService.signUp(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+    );
+    if (error == null) {
       Navigator.of(context).pushReplacementNamed('/home');
-    } catch (e) {
+    } else {
       setState(() {
-        errorMessage = 'Signup failed. Try a different email.';
-      });
-    }
-  }
-
-  /// Function to handle password recovery.
-  Future<void> _recoverPassword() async {
-    if (_emailController.text.isEmpty) {
-      setState(() {
-        errorMessage = 'Please enter your email to reset password.';
-      });
-      return;
-    }
-    try {
-      await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
-      setState(() {
-        errorMessage = 'Password reset email sent!';
-      });
-    } catch (e) {
-      setState(() {
-        errorMessage = 'Password recovery failed. Check your email.';
+        errorMessage = error;
       });
     }
   }
@@ -80,21 +60,28 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              /// Display Login or Sign Up title based on mode
               Text(
                 isSignupMode ? "Sign Up" : "Login",
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 20),
+              
+              /// Email Input Field
               TextField(
                 controller: _emailController,
                 decoration: InputDecoration(labelText: 'Email'),
               ),
               SizedBox(height: 10),
+              
+              /// Password Input Field
               TextField(
                 controller: _passwordController,
                 decoration: InputDecoration(labelText: 'Password'),
                 obscureText: true,
               ),
+              
+              /// Confirm Password Field (Only for Signup Mode)
               if (isSignupMode) ...[
                 SizedBox(height: 10),
                 TextField(
@@ -104,23 +91,33 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ],
               SizedBox(height: 10),
+              
+              /// Error Message Display (if any)
               Text(
                 errorMessage,
                 style: TextStyle(color: Colors.red),
               ),
               SizedBox(height: 20),
+              
+              /// Login or Sign Up Button
               ElevatedButton(
                 onPressed: isSignupMode ? _signupUser : _authUser,
                 child: Text(isSignupMode ? "Sign Up" : "Login"),
               ),
+              
+              /// Forgot Password Button (Navigates to Forgot Password Screen)
               TextButton(
-                onPressed: _recoverPassword,
+                onPressed: () {
+                  Navigator.of(context).pushNamed('/forgot-password');
+                },
                 child: Text("Forgot Password?"),
               ),
+              
+              /// Toggle between Login and Signup Modes
               TextButton(
                 onPressed: () {
                   setState(() {
-                    isSignupMode = !isSignupMode; // Toggle between login and signup
+                    isSignupMode = !isSignupMode;
                   });
                 },
                 child: Text(isSignupMode
