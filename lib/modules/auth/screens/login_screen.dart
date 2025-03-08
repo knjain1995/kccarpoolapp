@@ -55,76 +55,81 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              /// Display Login or Sign Up title based on mode
-              Text(
-                isSignupMode ? "Sign Up" : "Login",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 20),
-              
-              /// Email Input Field
-              TextField(
-                controller: _emailController,
-                decoration: InputDecoration(labelText: 'Email'),
-              ),
-              SizedBox(height: 10),
-              
-              /// Password Input Field
-              TextField(
-                controller: _passwordController,
-                decoration: InputDecoration(labelText: 'Password'),
-                obscureText: true,
-              ),
-              
-              /// Confirm Password Field (Only for Signup Mode)
-              if (isSignupMode) ...[
-                SizedBox(height: 10),
+        child: SingleChildScrollView( // Allows scrolling on smaller screens
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                /// Display Login or Sign Up title based on mode
+                Text(
+                  isSignupMode ? "Sign Up" : "Login",
+                  style: TextStyle(
+                    fontSize: MediaQuery.of(context).size.width * 0.08, // Adjusts size based on screen width
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 20),
+                
+                /// Email Input Field
                 TextField(
-                  controller: _confirmPasswordController,
-                  decoration: InputDecoration(labelText: 'Confirm Password'),
+                  controller: _emailController,
+                  decoration: InputDecoration(labelText: 'Email'),
+                ),
+                SizedBox(height: 10),
+                
+                /// Password Input Field
+                TextField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(labelText: 'Password'),
                   obscureText: true,
                 ),
+                
+                /// Confirm Password Field (Only for Signup Mode)
+                if (isSignupMode) ...[
+                  SizedBox(height: 10),
+                  TextField(
+                    controller: _confirmPasswordController,
+                    decoration: InputDecoration(labelText: 'Confirm Password'),
+                    obscureText: true,
+                  ),
+                ],
+                SizedBox(height: 10),
+                
+                /// Error Message Display (if any)
+                Text(
+                  errorMessage,
+                  style: TextStyle(color: Colors.red),
+                ),
+                SizedBox(height: 20),
+                
+                /// Login or Sign Up Button
+                ElevatedButton(
+                  onPressed: isSignupMode ? _signupUser : _authUser,
+                  child: Text(isSignupMode ? "Sign Up" : "Login"),
+                ),
+                
+                /// Forgot Password Button (Navigates to Forgot Password Screen)
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pushNamed('/forgot-password');
+                  },
+                  child: Text("Forgot Password?"),
+                ),
+                
+                /// Toggle between Login and Signup Modes
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      isSignupMode = !isSignupMode;
+                    });
+                  },
+                  child: Text(isSignupMode
+                      ? "Already have an account? Login"
+                      : "Don't have an account? Sign Up"),
+                ),
               ],
-              SizedBox(height: 10),
-              
-              /// Error Message Display (if any)
-              Text(
-                errorMessage,
-                style: TextStyle(color: Colors.red),
-              ),
-              SizedBox(height: 20),
-              
-              /// Login or Sign Up Button
-              ElevatedButton(
-                onPressed: isSignupMode ? _signupUser : _authUser,
-                child: Text(isSignupMode ? "Sign Up" : "Login"),
-              ),
-              
-              /// Forgot Password Button (Navigates to Forgot Password Screen)
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pushNamed('/forgot-password');
-                },
-                child: Text("Forgot Password?"),
-              ),
-              
-              /// Toggle between Login and Signup Modes
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    isSignupMode = !isSignupMode;
-                  });
-                },
-                child: Text(isSignupMode
-                    ? "Already have an account? Login"
-                    : "Don't have an account? Sign Up"),
-              ),
-            ],
+            ),
           ),
         ),
       ),

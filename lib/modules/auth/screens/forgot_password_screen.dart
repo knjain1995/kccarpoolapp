@@ -32,44 +32,52 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Forgot Password")),
-      body: Padding(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            /// Instruction text for the user
-            Text("Enter your email to reset password", style: TextStyle(fontSize: 18)),
-            SizedBox(height: 10),
-            
-            /// Email input field
-            TextField(
-              controller: _emailController,
-              decoration: InputDecoration(labelText: 'Email'),
-            ),
-            SizedBox(height: 20),
-            
-            /// Reset Password Button
-            ElevatedButton(
-              onPressed: _resetPassword,
-              child: Text("Reset Password"),
-            ),
-            
-            /// Display messages for success/error feedback
-            SizedBox(height: 10),
-            Text(
-              message,
-              style: TextStyle(color: Colors.red),
-            ),
-            
-            /// Cancel button to navigate back to login
-            SizedBox(height: 20),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context); // Navigate back to login screen
-              },
-              child: Text("Cancel"),
-            ),
-          ],
+      body: SingleChildScrollView( // Ensures content is scrollable on small screens
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              /// Instruction text for the user
+              Text(
+                "Enter your email to reset password",
+                style: TextStyle(
+                  fontSize: MediaQuery.of(context).size.width * 0.05, // Responsive font size
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 10),
+              
+              /// Email input field
+              TextField(
+                controller: _emailController,
+                decoration: InputDecoration(labelText: 'Email'),
+              ),
+              SizedBox(height: 20),
+              
+              /// Reset Password Button
+              ElevatedButton(
+                onPressed: _resetPassword,
+                child: Text("Reset Password"),
+              ),
+              
+              /// Display messages for success/error feedback
+              SizedBox(height: 10),
+              Text(
+                message,
+                style: TextStyle(color: Colors.red),
+              ),
+              
+              /// Cancel button to navigate back to login
+              SizedBox(height: 20),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // Navigate back to login screen
+                },
+                child: Text("Cancel"),
+              ),
+            ],
+          ),
         ),
       ),
     );
