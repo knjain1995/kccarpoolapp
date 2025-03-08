@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kccarpoolapp/modules/auth/screens/login_screen.dart'; // Import Login screen
 
 /// OnboardingScreen is the first screen shown to users when they open the app.
 /// It introduces the app's features in a multi-page view format.
@@ -28,8 +29,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeInOut, // Animation style.
       );
     } else {
-      // TODO: Update this to navigate to the login/signup screen once created.
-      print("Onboarding complete! Navigate to the login/signup screen.");
+      // TODO: Update this to navigate to the signup screen once created.
+      print("Onboarding complete! Navigate to signup screen.");
     }
   }
 
@@ -85,11 +86,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           
           SizedBox(height: 20),
           
-          /// Login button, allowing users to skip onboarding and go to login (when implemented).
+          /// Login button, allowing users to skip onboarding and go to login screen.
           TextButton(
             onPressed: () {
-              // TODO: Update navigation once login screen is implemented.
-              print("Navigate to Login screen (to be implemented)");
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => LoginScreen()),
+              );
             },
             child: Text("Already have an account? Login"),
           ),
