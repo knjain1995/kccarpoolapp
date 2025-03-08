@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/modules/auth/screens/login_screen.dart'; // Import Login screen
 
 /// OnboardingScreen is the first screen shown to users when they open the app.
-/// It introduces the app's features in a multi-page view format.
+/// It introduces the app's features in a multi-page view format with swipe gestures.
 class OnboardingScreen extends StatefulWidget {
   @override
   _OnboardingScreenState createState() => _OnboardingScreenState();
@@ -29,10 +29,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeInOut, // Animation style.
       );
     } else {
-      // TODO: Update this to navigate to the signup screen once created.
-      print("Onboarding complete! Navigate to signup screen.");
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => LoginScreen()), // Navigate to Login screen
+      );
+    }
+    if (currentIndex < onboardingData.length - 1) {
+      _pageController.nextPage(
+        duration: Duration(milliseconds: 500), // Smooth transition duration.
+        curve: Curves.easeInOut, // Animation style.
+      );
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => LoginScreen()), // Navigate to Login screen
+      );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +70,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           
           /// Row displaying progress dots to indicate current onboarding step.
+          SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
@@ -128,41 +141,32 @@ class OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        /// The top section of each onboarding screen, represented as a placeholder colored box.
-        Expanded(
-          flex: 3,
-          child: Container(
-            color: Colors.orange, // Placeholder background color for content.
-            child: Center(
-              child: Text(
-                title,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-                textAlign: TextAlign.center,
-              ),
+    return Container(
+      padding: EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          /// The top section of each onboarding screen, displaying the title.
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: MediaQuery.of(context).size.width * 0.08, // Responsive font size
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
             ),
+            textAlign: TextAlign.center,
           ),
-        ),
-        
-        /// The lower section containing text description.
-        Expanded(
-          flex: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              children: [
-                Text(
-                  description,
-                  style: TextStyle(fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+          
+          SizedBox(height: 20),
+          
+          /// The lower section containing text description.
+          Text(
+            description,
+            style: TextStyle(fontSize: MediaQuery.of(context).size.width * 0.05, color: Colors.black54),
+            textAlign: TextAlign.center,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
