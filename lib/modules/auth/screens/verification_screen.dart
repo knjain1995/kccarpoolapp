@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -19,6 +21,11 @@ class _VerificationScreenState extends State<VerificationScreen> {
   String? _photoFile;
   String? _govIdFile;
   String? _driverLicenseFile; // Optional
+
+  /// for file upload
+  File? _selectedFile;
+  String? _fileName;
+  bool _isFileUploaded = false; // Flag for UI update
 
   /// Validates if all required fields are filled
   bool _validateForm() {
@@ -63,23 +70,27 @@ class _VerificationScreenState extends State<VerificationScreen> {
   }
 
   /// used to upload documents to firestore
-  Future<String?> _uploadFile(String fieldName) async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'png', 'pdf'], // Restrict to images and PDFs
-    );
+  Future<void> _uploadFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'png', 'pdf'], // Restrict to these formats
+      );
 
-    if (result == null || result.files.isEmpty) return null;
+      if (result != null && result.files.single.path != null) {
+        setState(() {
+          _selectedFile = File(result.files.single.path!);
+          _fileName = result.files.single.name;
+          _isFileUploaded = true; // Mark as uploaded for UI update
+        });
 
-    final file = result.files.first;
-    final fileName = "${FirebaseAuth.instance.currentUser!.uid}_$fieldName.${file.extension}";
-
-    // Upload to Firebase Storage
-    final storageRef = FirebaseStorage.instance.ref().child("uploads/$fileName");
-    await storageRef.putData(file.bytes!);
-
-    // Return download URL
-    return await storageRef.getDownloadURL();
+        print("File selected: $_fileName"); // Debugging log
+      } else {
+        print("No file selected.");
+      }
+    } catch (e) {
+      print("File picking error: $e");
+    }
   }
 
   @override
@@ -112,10 +123,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
             Text("Upload Profile Photo (Required)"),
             ElevatedButton(
               onPressed: () async {
-                String? url = await _uploadFile("profilePhoto");
-                if (url != null) setState(() => _photoFile = url);
+                await _uploadFile(); // Calls the file picker
+                setState(() {
+                  _photoFile = _fileName; // Update UI with selected file name
+                });
               },
-              child: Text(_photoFile == null ? "Upload Photo" : "Photo Uploaded"),
+              child: Text(_photoFile == null ? "Upload Photo" : "Photo Uploaded: $_photoFile"),
             ),
             SizedBox(height: 10),
 
@@ -123,10 +136,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
             Text("Upload Driver License (Optional)"),
             ElevatedButton(
               onPressed: () async {
-                String? url = await _uploadFile("driverLicense");
-                if (url != null) setState(() => _driverLicenseFile = url);
+                await _uploadFile();
+                setState(() {
+                  _driverLicenseFile = _fileName;
+                });
               },
-              child: Text(_driverLicenseFile == null ? "Upload License" : "License Uploaded"),
+              child: Text(_driverLicenseFile == null ? "Upload License" : "License Uploaded: $_driverLicenseFile"),
             ),
             SizedBox(height: 10),
 
@@ -134,17 +149,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
             Text("Upload Government ID (Required)"),
             ElevatedButton(
               onPressed: () async {
-                String? url = await _uploadFile("govId");
-                if (url != null) setState(() => _govIdFile = url);
+                await _uploadFile();
+                setState(() {
+                  _govIdFile = _fileName;
+                });
               },
-              child: Text(_govIdFile == null ? "Upload ID" : "ID Uploaded"),
-            ),
-            SizedBox(height: 20),
-
-            /// Address Input
-            TextField(
-              controller: _addressController,
-              decoration: InputDecoration(labelText: "Enter Your Address"),
+              child: Text(_govIdFile == null ? "Upload ID" : "ID Uploaded: $_govIdFile"),
             ),
             SizedBox(height: 20),
 
