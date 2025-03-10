@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       debugShowCheckedModeBanner: false,
-      initialRoute: '/onboarding',
+      initialRoute: AppRoutes.onboarding,
       routes: AppRoutes.routes,
       // home: Scaffold(
       //   body: Center(child: Text("Welcome to kccarpoolapp")),

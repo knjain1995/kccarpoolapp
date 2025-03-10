@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/services/auth_service.dart'; // Import AuthService
 
 /// HomeScreen - Main screen after user logs in.
@@ -15,7 +16,14 @@ class HomeScreen extends StatelessWidget {
             /// Logout button in the app bar
             IconButton(
               icon: Icon(Icons.logout),
-              onPressed: () => AuthService().logout(context), // Use AuthService
+              // onPressed: () async {
+              //   await AuthService().logout();
+              //   Navigator.of(context).pushReplacementNamed('/login'); // Move navigation here
+              // },
+              onPressed: () {
+                AuthService().logout();
+                Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+              },
               tooltip: "Logout",
             ),
           ],
@@ -27,3 +35,12 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
+
+
+
+//  /// Logout button in the app bar
+//             IconButton(
+//               icon: Icon(Icons.logout),
+//               onPressed: () => AuthService().logout(context), // Use AuthService
+//               tooltip: "Logout",
+//             ),

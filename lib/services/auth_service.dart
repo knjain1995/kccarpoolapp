@@ -6,9 +6,8 @@ class AuthService {
   final FirebaseFunctions _firebaseFunctions = FirebaseFunctions(); // Use FirebaseFunctions
 
   /// Logs out the current user and redirects to the login screen
-  Future<void> logout(BuildContext context) async {
+  Future<void> logout() async {
     await _firebaseFunctions.logout(); // Call FirebaseFunctions logout
-    Navigator.of(context).pushReplacementNamed('/login'); // Navigate back to login
   }
 
   /// Signs in user with email and password via FirebaseFunctions
@@ -21,9 +20,17 @@ class AuthService {
     return await _firebaseFunctions.signUp(fullName, email, phoneNumber, password);
   }
 
-
   /// Sends a password reset email to the user via FirebaseFunctions
   Future<String?> sendPasswordResetEmail(String email) async {
     return await _firebaseFunctions.sendPasswordResetEmail(email);
   }
 }
+
+
+
+
+  // /// Logs out the current user and redirects to the login screen
+  // Future<void> logout(BuildContext context) async {
+  //   await _firebaseFunctions.logout(); // Call FirebaseFunctions logout
+  //   Navigator.of(context).pushReplacementNamed('/login'); // Navigate back to login
+  // }

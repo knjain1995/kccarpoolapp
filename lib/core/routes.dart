@@ -6,11 +6,17 @@ import 'package:kccarpoolapp/modules/home/screens/home_screen.dart';
 import 'package:kccarpoolapp/modules/onboarding/onboarding_screen.dart';
 
 class AppRoutes {
+  static const String onboarding = '/onboarding';
+  static const String login = '/login';
+  static const String home = '/home';
+  static const String forgotPassword = '/forgot-password';
+  static const String verification = '/verification';
+
   static Map<String, WidgetBuilder> routes = {
-    '/onboarding': (context) => OnboardingScreen(),
-    '/login': (context) => LoginScreen(),
-    '/home': (context) => HomeScreen(),
-    '/forgot-password': (context) => ForgotPasswordScreen(),
-    '/verification': (context) => VerificationScreen()
+    onboarding: (context) => OnboardingScreen(),
+    login: (context) => LoginScreen(),
+    home: (context) => HomeScreen(),
+    forgotPassword: (context) => ForgotPasswordScreen(),
+    verification: (context) => VerificationScreen(),
   };
 }

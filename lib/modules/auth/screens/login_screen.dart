@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/services/auth_service.dart'; // Import AuthService
 import 'package:flutter/services.dart'; // For phone number input formatting
 
@@ -25,7 +26,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordController.text.trim(),
     );
     if (error == null) {
-      Navigator.of(context).pushReplacementNamed('/home'); // Navigate to Home on success
+      // Navigator.of(context).pushReplacementNamed('/home');
+      Navigator.of(context).pushReplacementNamed(AppRoutes.home); // Navigate to Home on success
     } else {
       setState(() {
         errorMessage = error;
@@ -56,7 +58,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (error == null) {
-      Navigator.of(context).pushReplacementNamed('/verification'); // Navigate to Verification Screen
+      // Navigator.of(context).pushReplacementNamed('/verification'); 
+      Navigator.of(context).pushReplacementNamed(AppRoutes.verification); // Navigate to Verification Screen
     } else {
       setState(() {
         errorMessage = error;
@@ -146,7 +149,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 /// Forgot Password Button (Navigates to Forgot Password Screen)
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).pushNamed('/forgot-password');
+                    // Navigator.of(context).pushNamed('/forgot-password');
+                    Navigator.of(context).pushNamed(AppRoutes.forgotPassword);
                   },
                   child: Text("Forgot Password?"),
                 ),

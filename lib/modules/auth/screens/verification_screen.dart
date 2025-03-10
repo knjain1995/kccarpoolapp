@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/modules/home/screens/home_screen.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
 
@@ -120,7 +121,8 @@ class _VerificationScreenState extends State<VerificationScreen> {
                       relationToChild: _relationToChild!,
                     );
 
-                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+                    Navigator.pushReplacementNamed(context, AppRoutes.home);
+                    // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("Please fill all required fields!"))

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/modules/auth/screens/login_screen.dart'; // Import Login screen
 
 /// OnboardingScreen is the first screen shown to users when they open the app.
@@ -29,19 +30,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeInOut, // Animation style.
       );
     } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => LoginScreen()), // Navigate to Login screen
-      );
-    }
-    if (currentIndex < onboardingData.length - 1) {
-      _pageController.nextPage(
-        duration: Duration(milliseconds: 500), // Smooth transition duration.
-        curve: Curves.easeInOut, // Animation style.
-      );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => LoginScreen()), // Navigate to Login screen
-      );
+      // Navigator.of(context).pushReplacement(
+      //   MaterialPageRoute(builder: (context) => LoginScreen()), // Navigate to Login screen
+      // );
+      Navigator.of(context).pushReplacementNamed(AppRoutes.login);
     }
   }
 
