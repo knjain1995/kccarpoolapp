@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/auth_service.dart'; // Import AuthService
+import 'package:flutter/services.dart'; // For phone number input formatting
 
 /// LoginScreen provides user authentication functionality using Firebase Auth via AuthService.
 class LoginScreen extends StatefulWidget {
@@ -9,9 +10,11 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService(); // Using AuthService for authentication
+  final TextEditingController _nameController = TextEditingController(text: 'Kartik Narendra Jain'); // Full Name
   final TextEditingController _emailController = TextEditingController(text: 'knjain1995@gmail.com'); // Default test email (Remove before production)
+  final TextEditingController _phoneController = TextEditingController(text: '9810665538'); // Phone Number
   final TextEditingController _passwordController = TextEditingController(text: 'Test@123'); // Default test password (Remove before production)
-  final TextEditingController _confirmPasswordController = TextEditingController(); // Used only in signup mode
+  final TextEditingController _confirmPasswordController = TextEditingController(text: 'Test@123'); // Used only in signup mode
   bool isSignupMode = false; // Toggles between Login and Signup
   String errorMessage = ""; // Holds error messages to display to the user
 
@@ -38,12 +41,18 @@ class _LoginScreenState extends State<LoginScreen> {
       });
       return;
     }
+    if (_nameController.text.isEmpty || _phoneController.text.isEmpty) {
+      setState(() {
+        errorMessage = 'All fields are mandatory except optional fields!';
+      });
+      return;
+    }
     String? error = await _authService.signUp(
       _emailController.text.trim(),
       _passwordController.text.trim(),
     );
     if (error == null) {
-      Navigator.of(context).pushReplacementNamed('/home');
+      Navigator.of(context).pushReplacementNamed('/verification'); // Navigate to Verification Screen after signup
     } else {
       setState(() {
         errorMessage = error;
@@ -71,12 +80,32 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 SizedBox(height: 20),
                 
+                /// Full Name Input Field (Only for Signup Mode)
+                if (isSignupMode) ...[
+                  TextField(
+                    controller: _nameController,
+                    decoration: InputDecoration(labelText: 'Full Name'),
+                  ),
+                  SizedBox(height: 10),
+                ],
+                
                 /// Email Input Field
                 TextField(
                   controller: _emailController,
                   decoration: InputDecoration(labelText: 'Email'),
                 ),
                 SizedBox(height: 10),
+                
+                /// Phone Number Input Field (Only for Signup Mode)
+                if (isSignupMode) ...[
+                  TextField(
+                    controller: _phoneController,
+                    decoration: InputDecoration(labelText: 'Phone Number (+91)'),
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+                  SizedBox(height: 10),
+                ],
                 
                 /// Password Input Field
                 TextField(
