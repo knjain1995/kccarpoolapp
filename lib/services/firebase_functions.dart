@@ -128,4 +128,6 @@ class FirebaseFunctions {
       throw Exception("Failed to update verification status.");
     }
   }
+
+  
 }
