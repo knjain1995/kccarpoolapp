@@ -13,7 +13,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
   final TextEditingController _emailOtpController = TextEditingController(text: '1234');
   final TextEditingController _phoneOtpController = TextEditingController(text: '1234');
   final TextEditingController _addressController = TextEditingController(text: 'Sample address, 123, Sec-2, Noida, Uttar Pradesh - 201309');
-  
+
   String? _relationToChild;
   String? _photoFile;
   String? _govIdFile;
@@ -68,7 +68,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 String? path = await _firebaseFunctions.saveFileLocally("driverLicense");
                 if (path != null) {
                   setState(() {
-                    _photoFile = path;
+                    _driverLicenseFile = path;
                   });
                   print("License saved at: $path");
                 }
@@ -84,7 +84,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 String? path = await _firebaseFunctions.saveFileLocally("govId");
                 if (path != null) {
                   setState(() {
-                    _photoFile = path;
+                    _govIdFile = path;
                   });
                   print("Govt ID saved at: $path");
                 }
@@ -92,7 +92,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
               child: Text(_govIdFile == null ? "Upload ID" : "ID Uploaded ✅"),
             ),
             SizedBox(height: 10),
-            
+
             /// Relation to Child Dropdown
             Text("Select Relation to Child"),
             DropdownButtonFormField<String>(
@@ -121,6 +121,10 @@ class _VerificationScreenState extends State<VerificationScreen> {
                     );
 
                     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => HomeScreen()));
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Please fill all required fields!"))
+                    );
                   }
                 },
                 child: Text("Submit & Continue"),

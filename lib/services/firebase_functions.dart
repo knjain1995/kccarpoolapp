@@ -35,28 +35,28 @@ class FirebaseFunctions {
   required String fullName,
   required String email,
   required String phoneNumber,
-}) async {
-  User? user = _auth.currentUser;
-  if (user == null) {
-    throw Exception("No authenticated user found.");
-  }
+  }) async {
+    User? user = _auth.currentUser;
+    if (user == null) {
+      throw Exception("No authenticated user found.");
+    }
 
-  try {
-    await _firestore.collection("users").doc(user.uid).set({
-      "fullName": fullName,
-      "email": email,
-      "phoneNumber": phoneNumber,
-      "emailVerified": false, // Initially false, updated after verification
-      "phoneVerified": false, // Initially false, updated after verification
-      "timestamp": FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    try {
+      await _firestore.collection("users").doc(user.uid).set({
+        "fullName": fullName,
+        "email": email,
+        "phoneNumber": phoneNumber,
+        "emailVerified": false, // Initially false, updated after verification
+        "phoneVerified": false, // Initially false, updated after verification
+        "timestamp": FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
-    print("Signup data saved successfully.");
-  } catch (e) {
-    print("Error saving signup data: $e");
-    throw Exception("Failed to save user data.");
+      print("Signup data saved successfully.");
+    } catch (e) {
+      print("Error saving signup data: $e");
+      throw Exception("Failed to save user data.");
+    }
   }
-}
 
   /// Sends a password reset email to the user
   Future<String?> sendPasswordResetEmail(String email) async {
@@ -188,7 +188,10 @@ class FirebaseFunctions {
     };
 
     try {
-      await FirebaseFirestore.instance.collection("users").doc(userId).update(verificationData);
+      await FirebaseFirestore.instance.collection("users").doc(userId).set(
+        verificationData, 
+        SetOptions(merge: true) // ✅ Ensures the document is created if not exists
+      );
       print("Verification data saved successfully!");
     } catch (e) {
       print("Error saving verification data: $e");
