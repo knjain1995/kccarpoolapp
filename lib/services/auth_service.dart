@@ -16,10 +16,11 @@ class AuthService {
     return await _firebaseFunctions.signIn(email, password);
   }
 
-  /// Registers a new user with email and password via FirebaseFunctions
-  Future<String?> signUp(String email, String password) async {
-    return await _firebaseFunctions.signUp(email, password);
+  /// Registers a new user with full details via FirebaseFunctions
+  Future<String?> signUp(String fullName, String email, String phoneNumber, String password) async {
+    return await _firebaseFunctions.signUp(fullName, email, phoneNumber, password);
   }
+
 
   /// Sends a password reset email to the user via FirebaseFunctions
   Future<String?> sendPasswordResetEmail(String email) async {

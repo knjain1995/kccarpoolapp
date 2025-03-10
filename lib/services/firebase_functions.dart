@@ -21,14 +21,24 @@ class FirebaseFunctions {
   }
 
   /// Registers a new user with email and password
-  Future<String?> signUp(String email, String password) async {
+  Future<String?> signUp(String fullName, String email, String phoneNumber, String password) async {
     try {
-      await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+
+      // Save user data in Firestore immediately after signup
+      await saveUserData(
+        fullName: fullName,
+        email: email,
+        phoneNumber: phoneNumber,
+      );
+
+      print("Signup and user data saved successfully.");
       return null; // Success
     } catch (e) {
-      return 'Signup failed. Try a different email.'; // Return error message
+      return 'Signup failed. Try a different email.';
     }
   }
+
 
   /// Save use signup data in Firestore
   Future<void> saveUserData({
@@ -73,42 +83,6 @@ class FirebaseFunctions {
     await _auth.signOut(); // Sign out from Firebase
   }
 
-
-   /// Store user verification data in Firestore
-  Future<void> storeVerificationData({
-    required String emailOtp,
-    required String phoneOtp,
-    required String photoUrl,
-    required String? driverLicenseUrl, // Optional
-    required String govIdUrl,
-    required String address,
-    required String relationToChild,
-  }) async {
-    User? user = _auth.currentUser;
-    if (user == null) {
-      throw Exception("No authenticated user found.");
-    }
-
-    try {
-      await _firestore.collection("users").doc(user.uid).set({
-        "emailOtp": emailOtp, // Placeholder for now
-        "phoneOtp": phoneOtp, // Placeholder for now
-        "photoUrl": photoUrl,
-        "driverLicenseUrl": driverLicenseUrl ?? "",
-        "govIdUrl": govIdUrl,
-        "address": address,
-        "relationToChild": relationToChild,
-        "verified": true, // Mark user as verified
-        "timestamp": FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      print("Verification data stored successfully.");
-    } catch (e) {
-      print("Error storing verification data: $e");
-      throw Exception("Failed to store verification data.");
-    }
-  }
-
   /// When OTP verification is successful, we update the Firestore document
   Future<void> markVerificationSuccess({
   required bool emailVerified,
@@ -141,8 +115,13 @@ class FirebaseFunctions {
 
     if (result != null) {
       try {
-        // Get the local app directory
-        Directory appDocDir = await getApplicationDocumentsDirectory();
+        // Get external storage directory (PUBLIC access)
+        Directory? appDocDir = await getExternalStorageDirectory();
+        if (appDocDir == null) {
+          print("Failed to get external storage directory.");
+          return null;
+        }
+
         String localPath = '${appDocDir.path}/$fileType';
         
         // Ensure the directory exists
@@ -152,10 +131,10 @@ class FirebaseFunctions {
         File file = File(result.files.single.path!);
         String newFilePath = '$localPath/${result.files.single.name}';
 
-        // Copy the file to local storage
+        // Copy the file to public storage
         await file.copy(newFilePath);
 
-        print("File saved locally at: $newFilePath");
+        print("File saved publicly at: $newFilePath");
         return newFilePath;
       } catch (e) {
         print("Error saving file locally: $e");
@@ -190,7 +169,7 @@ class FirebaseFunctions {
     try {
       await FirebaseFirestore.instance.collection("users").doc(userId).set(
         verificationData, 
-        SetOptions(merge: true) // ✅ Ensures the document is created if not exists
+        SetOptions(merge: true) // ✅ Ensures previous data is not erased
       );
       print("Verification data saved successfully!");
     } catch (e) {

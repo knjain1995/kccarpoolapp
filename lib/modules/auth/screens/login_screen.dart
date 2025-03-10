@@ -47,18 +47,23 @@ class _LoginScreenState extends State<LoginScreen> {
       });
       return;
     }
+
     String? error = await _authService.signUp(
-      _emailController.text.trim(),
-      _passwordController.text.trim(),
+      _nameController.text.trim(), // Full Name
+      _emailController.text.trim(), // Email
+      _phoneController.text.trim(), // Phone Number
+      _passwordController.text.trim(), // Password
     );
+
     if (error == null) {
-      Navigator.of(context).pushReplacementNamed('/verification'); // Navigate to Verification Screen after signup
+      Navigator.of(context).pushReplacementNamed('/verification'); // Navigate to Verification Screen
     } else {
       setState(() {
         errorMessage = error;
       });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
