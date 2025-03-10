@@ -49,14 +49,15 @@ class _VerificationScreenState extends State<VerificationScreen> {
             Text("Upload Profile Photo (Required)"),
             ElevatedButton(
               onPressed: () async {
-                String? url = await _firebaseFunctions.uploadFile("profilePhoto");
-                if (url != null) {
+                String? path = await _firebaseFunctions.saveFileLocally("profilePhoto");
+                if (path != null) {
                   setState(() {
-                    _photoFile = url;
+                    _photoFile = path;
                   });
+                  print("Profile photo saved at: $path");
                 }
               },
-              child: Text(_photoFile == null ? "Upload Photo" : "Photo Uploaded ✅"),
+              child: Text(_photoFile == null ? "Upload Photo" : "Photo Saved Locally ✅"),
             ),
             SizedBox(height: 10),
 
@@ -64,32 +65,34 @@ class _VerificationScreenState extends State<VerificationScreen> {
             Text("Upload Driver License (Optional)"),
             ElevatedButton(
               onPressed: () async {
-                String? url = await _firebaseFunctions.uploadFile("driverLicense");
-                if (url != null) {
+                String? path = await _firebaseFunctions.saveFileLocally("driverLicense");
+                if (path != null) {
                   setState(() {
-                    _driverLicenseFile = url;
+                    _photoFile = path;
                   });
+                  print("License saved at: $path");
                 }
               },
               child: Text(_driverLicenseFile == null ? "Upload License" : "License Uploaded ✅"),
             ),
             SizedBox(height: 10),
-
+            
             /// Upload Government ID (Required)
             Text("Upload Government ID (Required)"),
             ElevatedButton(
               onPressed: () async {
-                String? url = await _firebaseFunctions.uploadFile("govId");
-                if (url != null) {
+                String? path = await _firebaseFunctions.saveFileLocally("govId");
+                if (path != null) {
                   setState(() {
-                    _govIdFile = url;
+                    _photoFile = path;
                   });
+                  print("Govt ID saved at: $path");
                 }
               },
               child: Text(_govIdFile == null ? "Upload ID" : "ID Uploaded ✅"),
             ),
-            SizedBox(height: 20),
-
+            SizedBox(height: 10),
+            
             /// Relation to Child Dropdown
             Text("Select Relation to Child"),
             DropdownButtonFormField<String>(

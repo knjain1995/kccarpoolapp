@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'kccarpoolapp.firebasestorage.app',
     measurementId: 'G-E3BTCY35H2',
   );
+
 }

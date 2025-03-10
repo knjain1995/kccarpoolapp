@@ -1,9 +1,8 @@
 import 'dart:io';
-
+import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 /// FirebaseFunctions - Centralized class for Firebase Authentication calls
 class FirebaseFunctions {
@@ -133,30 +132,33 @@ class FirebaseFunctions {
     }
   }
 
-    /// Uploads file to Firebase Storage and returns the download URL
-  Future<String?> uploadFile(String fileType) async {
+  /// Save files locally to system
+  Future<String?> saveFileLocally(String fileType) async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
     );
 
     if (result != null) {
-      File file = File(result.files.single.path!);
-      String fileName = "${DateTime.now().millisecondsSinceEpoch}_${result.files.single.name}";
-
       try {
-        // Upload file to Firebase Storage
-        Reference storageRef = FirebaseStorage.instance.ref().child('uploads/$fileType/$fileName');
-        UploadTask uploadTask = storageRef.putFile(file);
+        // Get the local app directory
+        Directory appDocDir = await getApplicationDocumentsDirectory();
+        String localPath = '${appDocDir.path}/$fileType';
         
-        // Wait for upload completion
-        TaskSnapshot snapshot = await uploadTask;
-        String downloadUrl = await snapshot.ref.getDownloadURL();
-        
-        print("Uploaded File URL: $downloadUrl");
-        return downloadUrl; // Return the URL to save in Firestore
+        // Ensure the directory exists
+        Directory(localPath).createSync(recursive: true);
+
+        // Create new file path
+        File file = File(result.files.single.path!);
+        String newFilePath = '$localPath/${result.files.single.name}';
+
+        // Copy the file to local storage
+        await file.copy(newFilePath);
+
+        print("File saved locally at: $newFilePath");
+        return newFilePath;
       } catch (e) {
-        print("File upload error: $e");
+        print("Error saving file locally: $e");
         return null;
       }
     } else {
