@@ -1,15 +1,20 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:kccarpoolapp/services/firebase_functions.dart';
 
-/// VerificationScreen - Handles user verification after signup
 class VerificationScreen extends StatefulWidget {
   @override
   _VerificationScreenState createState() => _VerificationScreenState();
 }
 
 class _VerificationScreenState extends State<VerificationScreen> {
-  final TextEditingController _emailOtpController = TextEditingController();
-  final TextEditingController _phoneOtpController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
+  final FirebaseFunctions _firebaseFunctions = FirebaseFunctions();
+
+  final TextEditingController _emailOtpController = TextEditingController(text: '1234');
+  final TextEditingController _phoneOtpController = TextEditingController(text: '1234');
+  final TextEditingController _addressController = TextEditingController(text: 'Sample address, 123, Sec-2, Noida, Uttar Pradesh - 201309');
   String? _relationToChild;
   String? _photoFile;
   String? _govIdFile;
@@ -28,16 +33,53 @@ class _VerificationScreenState extends State<VerificationScreen> {
     return true;
   }
 
-  /// Handles form submission
-  void _submitVerification() {
-    if (_validateForm()) {
-      // Navigate to Home Screen
-      Navigator.of(context).pushReplacementNamed('/home');
-    } else {
+  /// Submits verification data to Firestore
+  Future<void> _submitVerification() async {
+    if (!_validateForm()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Please complete all required fields.")),
       );
+      return;
     }
+
+    try {
+      await _firebaseFunctions.storeVerificationData(
+        emailOtp: _emailOtpController.text.trim(),
+        phoneOtp: _phoneOtpController.text.trim(),
+        photoUrl: _photoFile!,
+        driverLicenseUrl: _driverLicenseFile, // Optional
+        govIdUrl: _govIdFile!,
+        address: _addressController.text.trim(),
+        relationToChild: _relationToChild!,
+      );
+
+      // Navigate to Home after successful verification
+      Navigator.of(context).pushReplacementNamed('/home');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error submitting verification data.")),
+      );
+    }
+  }
+
+  /// used to upload documents to firestore
+  Future<String?> _uploadFile(String fieldName) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'png', 'pdf'], // Restrict to images and PDFs
+    );
+
+    if (result == null || result.files.isEmpty) return null;
+
+    final file = result.files.first;
+    final fileName = "${FirebaseAuth.instance.currentUser!.uid}_$fieldName.${file.extension}";
+
+    // Upload to Firebase Storage
+    final storageRef = FirebaseStorage.instance.ref().child("uploads/$fileName");
+    await storageRef.putData(file.bytes!);
+
+    // Return download URL
+    return await storageRef.getDownloadURL();
   }
 
   @override
@@ -69,9 +111,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
             /// Upload Profile Photo
             Text("Upload Profile Photo (Required)"),
             ElevatedButton(
-              onPressed: () {
-                // TODO: Implement file picker
-                setState(() => _photoFile = "photo_uploaded.jpg");
+              onPressed: () async {
+                String? url = await _uploadFile("profilePhoto");
+                if (url != null) setState(() => _photoFile = url);
               },
               child: Text(_photoFile == null ? "Upload Photo" : "Photo Uploaded"),
             ),
@@ -80,9 +122,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
             /// Upload Driver License (Optional)
             Text("Upload Driver License (Optional)"),
             ElevatedButton(
-              onPressed: () {
-                // TODO: Implement file picker
-                setState(() => _driverLicenseFile = "license_uploaded.jpg");
+              onPressed: () async {
+                String? url = await _uploadFile("driverLicense");
+                if (url != null) setState(() => _driverLicenseFile = url);
               },
               child: Text(_driverLicenseFile == null ? "Upload License" : "License Uploaded"),
             ),
@@ -91,9 +133,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
             /// Upload Government ID (Required)
             Text("Upload Government ID (Required)"),
             ElevatedButton(
-              onPressed: () {
-                // TODO: Implement file picker
-                setState(() => _govIdFile = "gov_id_uploaded.jpg");
+              onPressed: () async {
+                String? url = await _uploadFile("govId");
+                if (url != null) setState(() => _govIdFile = url);
               },
               child: Text(_govIdFile == null ? "Upload ID" : "ID Uploaded"),
             ),
