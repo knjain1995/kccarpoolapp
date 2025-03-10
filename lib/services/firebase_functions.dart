@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 /// FirebaseFunctions - Centralized class for Firebase Authentication calls
 class FirebaseFunctions {
@@ -129,5 +133,63 @@ class FirebaseFunctions {
     }
   }
 
-  
+    /// Uploads file to Firebase Storage and returns the download URL
+  Future<String?> uploadFile(String fileType) async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+    );
+
+    if (result != null) {
+      File file = File(result.files.single.path!);
+      String fileName = "${DateTime.now().millisecondsSinceEpoch}_${result.files.single.name}";
+
+      try {
+        // Upload file to Firebase Storage
+        Reference storageRef = FirebaseStorage.instance.ref().child('uploads/$fileType/$fileName');
+        UploadTask uploadTask = storageRef.putFile(file);
+        
+        // Wait for upload completion
+        TaskSnapshot snapshot = await uploadTask;
+        String downloadUrl = await snapshot.ref.getDownloadURL();
+        
+        print("Uploaded File URL: $downloadUrl");
+        return downloadUrl; // Return the URL to save in Firestore
+      } catch (e) {
+        print("File upload error: $e");
+        return null;
+      }
+    } else {
+      print("No file selected");
+      return null;
+    }
+  }
+
+  /// Saves user verification data in Firestore
+  Future<void> saveVerificationData({
+    required String profilePhoto,
+    required String govId,
+    required String? driverLicense,
+    required String address,
+    required String relationToChild,
+  }) async {
+    String userId = FirebaseAuth.instance.currentUser!.uid;
+
+    Map<String, dynamic> verificationData = {
+      "profilePhoto": profilePhoto,
+      "driverLicense": driverLicense ?? "",
+      "govId": govId,
+      "address": address.trim(),
+      "relationToChild": relationToChild,
+      "emailVerified": true, // Placeholder for now
+      "phoneVerified": true, // Placeholder for now
+    };
+
+    try {
+      await FirebaseFirestore.instance.collection("users").doc(userId).update(verificationData);
+      print("Verification data saved successfully!");
+    } catch (e) {
+      print("Error saving verification data: $e");
+    }
+  }
 }
