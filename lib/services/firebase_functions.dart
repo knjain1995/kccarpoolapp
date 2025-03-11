@@ -4,11 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-/// FirebaseFunctions - Centralized class for Firebase Authentication calls
+/// FirebaseFunctions - Centralized class for Firebase Authentication and Firestore interactions
 class FirebaseFunctions {
   final FirebaseAuth _auth = FirebaseAuth.instance; // Firebase Auth instance
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Firestore instance
 
   /// Logs in user with email and password
   Future<String?> signIn(String email, String password) async {
@@ -39,17 +38,64 @@ class FirebaseFunctions {
     }
   }
 
+  /// Fetch user profile data from Firestore
+  Future<Map<String, dynamic>?> getUserData() async {
+    User? user = _auth.currentUser;
+    if (user == null) return null; // No user logged in
 
-  /// Save use signup data in Firestore
-  Future<void> saveUserData({
-  required String fullName,
-  required String email,
-  required String phoneNumber,
+    try {
+      DocumentSnapshot userDoc = await _firestore.collection("users").doc(user.uid).get();
+
+      if (userDoc.exists) {
+        return userDoc.data() as Map<String, dynamic>; // Return user data
+      } else {
+        return null; // No data found
+      }
+    } catch (e) {
+      print("Error fetching user data: $e");
+      return null;
+    }
+  }
+
+  /// Updates user profile data in Firestore
+  Future<void> updateUserProfile({
+    required String fullName,
+    required String phoneNumber,
+    required String address,
+    required String profilePhoto,
+    required String govId,
+    required String? driverLicense,
+    required String relationToChild,
   }) async {
     User? user = _auth.currentUser;
-    if (user == null) {
-      throw Exception("No authenticated user found.");
+    if (user == null) throw Exception("No authenticated user found.");
+
+    try {
+      await _firestore.collection("users").doc(user.uid).set({
+        "fullName": fullName,
+        "phoneNumber": phoneNumber,
+        "address": address.trim(),
+        "profilePhoto": profilePhoto,
+        "govId": govId,
+        "driverLicense": driverLicense ?? "",
+        "relationToChild": relationToChild,
+      }, SetOptions(merge: true)); // ✅ Ensures previous data is not erased
+
+      print("User profile updated successfully.");
+    } catch (e) {
+      print("Error updating user profile: $e");
+      throw Exception("Failed to update user profile.");
     }
+  }
+
+  /// Save user signup data in Firestore
+  Future<void> saveUserData({
+    required String fullName,
+    required String email,
+    required String phoneNumber,
+  }) async {
+    User? user = _auth.currentUser;
+    if (user == null) throw Exception("No authenticated user found.");
 
     try {
       await _firestore.collection("users").doc(user.uid).set({
@@ -85,13 +131,11 @@ class FirebaseFunctions {
 
   /// When OTP verification is successful, we update the Firestore document
   Future<void> markVerificationSuccess({
-  required bool emailVerified,
-  required bool phoneVerified,
+    required bool emailVerified,
+    required bool phoneVerified,
   }) async {
     User? user = _auth.currentUser;
-    if (user == null) {
-      throw Exception("No authenticated user found.");
-    }
+    if (user == null) throw Exception("No authenticated user found.");
 
     try {
       await _firestore.collection("users").doc(user.uid).update({
@@ -123,7 +167,7 @@ class FirebaseFunctions {
         }
 
         String localPath = '${appDocDir.path}/$fileType';
-        
+
         // Ensure the directory exists
         Directory(localPath).createSync(recursive: true);
 
@@ -168,8 +212,8 @@ class FirebaseFunctions {
 
     try {
       await FirebaseFirestore.instance.collection("users").doc(userId).set(
-        verificationData, 
-        SetOptions(merge: true) // ✅ Ensures previous data is not erased
+        verificationData,
+        SetOptions(merge: true), // ✅ Ensures previous data is not erased
       );
       print("Verification data saved successfully!");
     } catch (e) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
 
 /// AuthService - Handles authentication-related functions across the app
@@ -6,8 +7,9 @@ class AuthService {
   final FirebaseFunctions _firebaseFunctions = FirebaseFunctions(); // Use FirebaseFunctions
 
   /// Logs out the current user and redirects to the login screen
-  Future<void> logout() async {
+  Future<void> logout(BuildContext context) async {
     await _firebaseFunctions.logout(); // Call FirebaseFunctions logout
+    Navigator.of(context).pushReplacementNamed(AppRoutes.login); // Ensure user is redirected to login
   }
 
   /// Signs in user with email and password via FirebaseFunctions

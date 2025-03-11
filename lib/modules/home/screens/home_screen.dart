@@ -13,15 +13,20 @@ class HomeScreen extends StatelessWidget {
           title: Text("Home"),
           automaticallyImplyLeading: false, // Removes back button
           actions: [
+            /// Profile button to navigate to the profile screen
+            IconButton(
+              icon: Icon(Icons.person),
+              onPressed: () {
+                Navigator.of(context).pushNamed(AppRoutes.profile);
+              },
+              tooltip: "Profile",
+            ),
+
             /// Logout button in the app bar
             IconButton(
               icon: Icon(Icons.logout),
-              // onPressed: () async {
-              //   await AuthService().logout();
-              //   Navigator.of(context).pushReplacementNamed('/login'); // Move navigation here
-              // },
               onPressed: () {
-                AuthService().logout();
+                AuthService().logout(context);
                 Navigator.of(context).pushReplacementNamed(AppRoutes.login);
               },
               tooltip: "Logout",
