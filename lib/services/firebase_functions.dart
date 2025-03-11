@@ -9,6 +9,11 @@ class FirebaseFunctions {
   final FirebaseAuth _auth = FirebaseAuth.instance; // Firebase Auth instance
   final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Firestore instance
 
+  /// Fetches user ID of the currently logged-in user
+  String? getCurrentUserId() {
+    return _auth.currentUser?.uid;
+  }
+
   /// Logs in user with email and password
   Future<String?> signIn(String email, String password) async {
     try {
@@ -159,7 +164,6 @@ class FirebaseFunctions {
 
     if (result != null) {
       try {
-        // Get external storage directory (PUBLIC access)
         Directory? appDocDir = await getExternalStorageDirectory();
         if (appDocDir == null) {
           print("Failed to get external storage directory.");
@@ -167,15 +171,10 @@ class FirebaseFunctions {
         }
 
         String localPath = '${appDocDir.path}/$fileType';
-
-        // Ensure the directory exists
         Directory(localPath).createSync(recursive: true);
 
-        // Create new file path
         File file = File(result.files.single.path!);
         String newFilePath = '$localPath/${result.files.single.name}';
-
-        // Copy the file to public storage
         await file.copy(newFilePath);
 
         print("File saved publicly at: $newFilePath");
@@ -188,7 +187,8 @@ class FirebaseFunctions {
       print("No file selected");
       return null;
     }
-  }
+  }  
+
 
   /// Saves user verification data in Firestore
   Future<void> saveVerificationData({
@@ -218,6 +218,121 @@ class FirebaseFunctions {
       print("Verification data saved successfully!");
     } catch (e) {
       print("Error saving verification data: $e");
+    }
+  }
+
+
+  /// Adds a new family member (adult or child) under the logged-in user
+  Future<void> addFamilyMember({
+    required String fullName,
+    required String? email,
+    required String? phoneNumber,
+    required bool isAdult, // Differentiates between Adult & Child
+    String? dateOfBirth, // Only for children
+    required String profilePhoto,
+    required String govId,
+    String? schoolId, // Only for children
+    String? schoolName, // Only for children
+    String? schoolIdNo, // Only for children
+    String? grade, // Only for children
+    String? driverLicense, // Only for adults (Optional)
+    required String address,
+    String? gender, // Only for children
+    required String relationToChild,
+  }) async {
+    String? userId = getCurrentUserId();
+    if (userId == null) throw Exception("No authenticated user found.");
+
+    try {
+      await _firestore.collection("users").doc(userId).collection("family").add({
+        "fullName": fullName,
+        "email": email ?? "",
+        "phoneNumber": phoneNumber ?? "",
+        "isAdult": isAdult,
+        "dateOfBirth": isAdult ? null : Timestamp.fromDate(DateTime.parse(dateOfBirth!)),
+        "profilePhoto": profilePhoto,
+        "govId": govId,
+        "driverLicense": isAdult ? driverLicense ?? "" : null,
+        "schoolId": isAdult ? null : schoolId ?? "",
+        "schoolName": isAdult ? null : schoolName ?? "",
+        "schoolIdNo": isAdult ? null : schoolIdNo ?? "",
+        "grade": isAdult ? null : grade ?? "",
+        "address": address,
+        "gender": isAdult ? null : gender,
+        "relationToChild": relationToChild,
+        "timestamp": FieldValue.serverTimestamp(),
+      });
+
+      print("Family member added successfully.");
+    } catch (e) {
+      print("Error adding family member: $e");
+      throw Exception("Failed to add family member.");
+    }
+  }
+
+  /// Adds a new vehicle to the logged-in user's collection
+  Future<void> addVehicle({
+    required String make,
+    required String model,
+    required int year,
+    required String color,
+    required String licenseNumber,
+    required String registrationNumber,
+    required String vehicleImage,
+    required String registrationImage,
+    required int seatingCapacity,
+  }) async {
+    String? userId = getCurrentUserId();
+    if (userId == null) throw Exception("No authenticated user found.");
+
+    try {
+      await _firestore.collection("users").doc(userId).collection("vehicles").add({
+        "make": make,
+        "model": model,
+        "year": year,
+        "color": color,
+        "licenseNumber": licenseNumber,
+        "registrationNumber": registrationNumber,
+        "vehicleImage": vehicleImage,
+        "registrationImage": registrationImage,
+        "seatingCapacity": seatingCapacity,
+        "timestamp": FieldValue.serverTimestamp(),
+      });
+
+      print("Vehicle added successfully.");
+    } catch (e) {
+      print("Error adding vehicle: $e");
+      throw Exception("Failed to add vehicle.");
+    }
+  }
+
+  /// Fetches family members and vehicles of the logged-in user
+  Future<Map<String, dynamic>> fetchFamilyAndVehicles() async {
+    String? userId = getCurrentUserId();
+    if (userId == null) throw Exception("No authenticated user found.");
+
+    List<Map<String, dynamic>> familyMembers = [];
+    List<Map<String, dynamic>> vehicles = [];
+
+    try {
+      // Fetch family members
+      QuerySnapshot familySnapshot =
+          await _firestore.collection("users").doc(userId).collection("family").get();
+      for (var doc in familySnapshot.docs) {
+        familyMembers.add(doc.data() as Map<String, dynamic>);
+      }
+
+      // Fetch vehicles
+      QuerySnapshot vehicleSnapshot =
+          await _firestore.collection("users").doc(userId).collection("vehicles").get();
+      for (var doc in vehicleSnapshot.docs) {
+        vehicles.add(doc.data() as Map<String, dynamic>);
+      }
+
+      return {"family": familyMembers, "vehicles": vehicles};
+    } catch (e) {
+      print("Error fetching family & vehicles: $e");
+      throw Exception("Failed to fetch data.");
     }
   }
 }
