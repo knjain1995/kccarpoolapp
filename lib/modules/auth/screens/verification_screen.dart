@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/core/routes.dart';
-import 'package:kccarpoolapp/modules/home/screens/home_screen.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
 
 class VerificationScreen extends StatefulWidget {
