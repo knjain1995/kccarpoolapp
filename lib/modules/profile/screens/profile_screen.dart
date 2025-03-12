@@ -1,5 +1,6 @@
 import 'dart:io'; // Required for handling local file storage
 import 'package:flutter/material.dart';
+import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Firebase interaction class
 import 'package:kccarpoolapp/services/auth_service.dart'; // Authentication service
 import 'package:file_picker/file_picker.dart'; // Used for selecting local files
@@ -150,6 +151,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _isEditing
                 ? ElevatedButton(onPressed: _saveProfile, child: Text("Save"))
                 : ElevatedButton(onPressed: () => setState(() => _isEditing = true), child: Text("Edit Profile")),
+          
+            // ✅ Manage Family Button
+            SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pushNamed(AppRoutes.manageFamily); // ✅ Navigate to Manage Family
+              },
+              icon: Icon(Icons.family_restroom),
+              label: Text("Manage Family"),
+            ),
+          
           ],
         ),
       ),

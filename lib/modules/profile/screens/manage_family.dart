@@ -13,9 +13,9 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
   final FirebaseFunctions _firebaseFunctions = FirebaseFunctions();
 
   // Controllers for input fields
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController(text: 'Seema Jain');
+  final TextEditingController _emailController = TextEditingController(text: 'seemajain@gmail.com');
+  final TextEditingController _phoneController = TextEditingController(text: '9540105173');
   final TextEditingController _dateOfBirthController = TextEditingController();
   final TextEditingController _schoolNameController = TextEditingController();
   final TextEditingController _schoolIdController = TextEditingController();
