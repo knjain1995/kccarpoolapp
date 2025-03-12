@@ -1,3 +1,4 @@
+// Filename: auth_service.dart  Location: lib/services/
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';

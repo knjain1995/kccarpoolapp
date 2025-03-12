@@ -1,3 +1,4 @@
+// Filename: onboarding_screen.dart  Location: lib/modules/onboarding/
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/modules/auth/screens/login_screen.dart'; // Import Login screen

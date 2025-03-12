@@ -1,4 +1,6 @@
+// Filename: profile_screen.dart  Location: lib/modules/profile/screens/
 import 'dart:io'; // Required for handling local file storage
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Firebase interaction class
@@ -15,6 +17,10 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseFunctions _firebaseFunctions = FirebaseFunctions(); // Firebase interaction instance
   final AuthService _authService = AuthService(); // Authentication service instance
+
+  List<Map<String, dynamic>> _adults = []; // Stores list of adult family members
+  List<Map<String, dynamic>> _children = []; // Stores list of child family members
+  bool _isLoading = true; // Tracks loading state
 
   // Controllers for text fields, allowing users to edit their details
   final TextEditingController _nameController = TextEditingController();
@@ -34,6 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadUserProfile(); // Fetch user data when the screen loads
+    _loadFamilyMembers(); // Fetch family members on screen load
   }
 
   /// Fetches the user's profile data from Firestore
@@ -89,6 +96,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Profile updated!")));
   }
 
+  /// Fetches family members from Firestore and separates them into Adults and Children
+  Future<void> _loadFamilyMembers() async {
+    List<Map<String, dynamic>> familyData = await _firebaseFunctions.getFamilyMembers();
+
+    setState(() {
+      _adults = familyData.where((member) => member['isAdult'] == true).toList();
+      _children = familyData.where((member) => member['isAdult'] == false).toList();
+      _isLoading = false;
+    });
+  }
+
+  /// Deletes a family member after confirmation
+  void _deleteFamilyMember(String memberId) async {
+    bool confirmDelete = await _showDeleteConfirmationDialog();
+    if (confirmDelete) {
+      await _firebaseFunctions.deleteFamilyMember(memberId);
+      _loadFamilyMembers(); // Refresh list after deletion
+    }
+  }
+
+  /// Shows a confirmation dialog before deleting a family member
+  Future<bool> _showDeleteConfirmationDialog() async {
+    return await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text("Delete Family Member"),
+            content: Text("Are you sure you want to remove this family member?"),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: Text("Cancel")),
+              TextButton(onPressed: () => Navigator.pop(context, true), child: Text("Delete", style: TextStyle(color: Colors.red))),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  /// Navigates to Manage Family screen for editing a family member
+  void _editFamilyMember(Map<String, dynamic> memberData) {
+    Navigator.pushNamed(context, AppRoutes.manageFamily, arguments: memberData);
+  }  
+
   /// Logs the user out and navigates back to the login screen
   Future<void> _logout() async {
     await _authService.logout(context); // Now properly handles logout and navigation
@@ -108,7 +156,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator()) // Show loading indicator
+          : SingleChildScrollView(
         padding: EdgeInsets.all(20),
         child: Column(
           children: [
@@ -161,7 +211,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icon(Icons.family_restroom),
               label: Text("Manage Family"),
             ),
-          
+
+            SizedBox(height: 20),
+
+            // Family Members Section
+            Text("Your Family Members", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            SizedBox(height: 10),
+
+            // Adults Section
+            if (_adults.isNotEmpty) ...[
+              Text("Adults", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              _buildFamilyList(_adults),
+              SizedBox(height: 10),
+            ],
+
+            // Children Section
+            if (_children.isNotEmpty) ...[
+              Text("Children", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              _buildFamilyList(_children),
+            ],
           ],
         ),
       ),
@@ -190,5 +258,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Text(filePath != null ? "Replace" : "Upload"),
       ),
     );
+  }
+
+  /// Builds a scrollable list of family members
+  Widget _buildFamilyList(List<Map<String, dynamic>> familyMembers) {
+    return Column(
+      children: familyMembers.map((member) {
+        return Card(
+          elevation: 2,
+          margin: EdgeInsets.symmetric(vertical: 5),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundImage: member['profilePhoto'] != null ? FileImage(File(member['profilePhoto'])) : null,
+              child: member['profilePhoto'] == null ? Icon(Icons.person) : null,
+            ),
+            title: Text(member['fullName']),
+            subtitle: Text(member['isAdult']
+                ? member['relationToChild'] // Show relation for adults
+                : "Age: ${_calculateAge(member['dateOfBirth'])}"), // Show age for children
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(icon: Icon(Icons.edit), onPressed: () => _editFamilyMember(member)), // Edit Button
+                IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteFamilyMember(member['id'])), // Delete Button
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Helper function to calculate age from Firestore Timestamp
+  int _calculateAge(Timestamp dobTimestamp) {
+    DateTime birthDate = dobTimestamp.toDate(); // Convert Firestore Timestamp to DateTime
+    DateTime today = DateTime.now();
+
+    int age = today.year - birthDate.year;
+    
+    // Adjust age if birthday hasn't occurred yet this year
+    if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) {
+      age--;
+    }
+
+    return age;
   }
 }

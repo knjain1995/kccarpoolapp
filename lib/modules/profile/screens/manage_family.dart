@@ -1,3 +1,4 @@
+// Filename: manage_family.dart  Location: lib/modules/profile/screens/
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
@@ -29,16 +30,35 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
   // Selection states
   bool _isAdult = true; // Toggle between Adult & Child
   String? _gender; // Gender selection for children
-  String? _relationToChild; // Relation to the child
+  String? _relationToChild; // Relation to the child (Only for Adults)
   String? _profilePhoto;
   String? _govId;
   String? _schoolId;
   String? _driverLicense;
+  DateTime? _selectedDateOfBirth; // Holds the selected date of birth
 
   @override
   void initState() {
     super.initState();
     _fetchOwnerAddress(); // Fetches the logged-in user's address
+
+    // Retrieve passed family member data
+    Future.delayed(Duration.zero, () {
+        final Map<String, dynamic>? memberData = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+        if (memberData != null) {
+            setState(() {
+                _nameController.text = memberData["fullName"] ?? "";
+                _emailController.text = memberData["email"] ?? "";
+                _phoneController.text = memberData["phoneNumber"] ?? "";
+                _addressController.text = memberData["address"] ?? "";  // Fix for empty address
+                _profilePhoto = memberData["profilePhoto"];
+                _govId = memberData["govId"];
+                _driverLicense = memberData["driverLicense"];
+                _relationToChild = memberData["relationToChild"];
+                _isAdult = memberData["isAdult"] ?? true;
+            });
+        }
+    });
   }
 
   /// Toggles between Adult & Child view
@@ -63,8 +83,14 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
 
   /// Saves family member to Firestore
   Future<void> _saveFamilyMember() async {
-    if (_nameController.text.isEmpty || _profilePhoto == null || _govId == null || _relationToChild == null) {
+    if (_nameController.text.isEmpty || _profilePhoto == null || _govId == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please fill all required fields!")));
+      return;
+    }
+
+    // Additional validation for Children
+    if (!_isAdult && _selectedDateOfBirth == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select a valid Date of Birth!")));
       return;
     }
 
@@ -73,7 +99,8 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
       email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
       phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
       isAdult: _isAdult,
-      dateOfBirth: _isAdult ? null : _dateOfBirthController.text.trim(),
+      dateOfBirth: _isAdult ? null : _selectedDateOfBirth, // 🔹 Store as timestamp in Firestore
+      // dateOfBirth: _isAdult ? null : _dateOfBirthController.text.trim(),
       profilePhoto: _profilePhoto!,
       govId: _govId!,
       schoolId: _isAdult ? null : _schoolId ?? "",
@@ -83,7 +110,8 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
       driverLicense: _isAdult ? _driverLicense ?? "" : null,
       address: _addressController.text.trim(),
       gender: _isAdult ? null : (_gender ?? ""),
-      relationToChild: _relationToChild!,
+      // relationToChild: _isAdult ? _relationToChild! : null, // 🔹 Removed for Children
+      relationToChild: _isAdult ? _relationToChild! : null, // 🔹 Removed for Children
     );
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Family Member Added!")));
@@ -110,6 +138,7 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
       _emailController.clear();
       _phoneController.clear();
       _dateOfBirthController.clear();
+      _selectedDateOfBirth = null;
       _schoolNameController.clear();
       _schoolIdController.clear();
       _schoolIdNoController.clear();
@@ -122,6 +151,23 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
       _gender = null;
       _relationToChild = null;
     });
+  }
+
+  /// Opens a date picker and updates the date of birth field
+  Future<void> _pickDateOfBirth() async {
+    DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDateOfBirth ?? DateTime.now(),
+      firstDate: DateTime(2000), // Limit selection to reasonable years
+      lastDate: DateTime.now(), // Cannot select future dates
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        _selectedDateOfBirth = pickedDate;
+        _dateOfBirthController.text = "${pickedDate.toLocal()}".split(' ')[0]; // Format as YYYY-MM-DD
+      });
+    }
   }
 
   @override
@@ -158,7 +204,8 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
 
             /// Fields only for Child
             if (!_isAdult) ...[
-              _buildTextField("Date of Birth", _dateOfBirthController),
+              _buildDatePickerField("Date of Birth", _dateOfBirthController, _pickDateOfBirth),
+              // _buildTextField("Date of Birth", _dateOfBirthController),
               _buildTextField("School Name", _schoolNameController),
               _buildTextField("School ID No.", _schoolIdNoController),
               _buildTextField("Grade", _gradeController),
@@ -207,14 +254,15 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
             ),
 
             /// Relation to Child
-            DropdownButtonFormField<String>(
-              value: _relationToChild,
-              items: ["Father", "Mother", "Guardian"].map((relation) {
-                return DropdownMenuItem(value: relation, child: Text(relation));
-              }).toList(),
-              onChanged: (value) => setState(() => _relationToChild = value),
-              decoration: InputDecoration(labelText: "Relation to Child"),
-            ),
+            if (_isAdult)
+              DropdownButtonFormField<String>(
+                value: _relationToChild,
+                items: ["Father", "Mother", "Guardian"].map((relation) {
+                  return DropdownMenuItem(value: relation, child: Text(relation));
+                }).toList(),
+                onChanged: (value) => setState(() => _relationToChild = value),
+                decoration: InputDecoration(labelText: "Relation to Child"),
+              ),
             SizedBox(height: 20),
 
             /// Save Button
@@ -244,6 +292,19 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
       trailing: ElevatedButton(
         onPressed: () => _pickFile(fileType),
         child: Text(filePath != null ? "Replace" : "Upload"),
+      ),
+    );
+  }
+
+    /// Builds a date picker field
+  Widget _buildDatePickerField(String label, TextEditingController controller, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: TextField(
+        controller: controller,
+        readOnly: true,
+        decoration: InputDecoration(labelText: label, suffixIcon: Icon(Icons.calendar_today)),
+        onTap: onTap,
       ),
     );
   }

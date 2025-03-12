@@ -1,3 +1,4 @@
+// Filename: firebase_functions.dart  Location: lib/services/
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -228,7 +229,7 @@ class FirebaseFunctions {
     required String? email,
     required String? phoneNumber,
     required bool isAdult, // Differentiates between Adult & Child
-    String? dateOfBirth, // Only for children
+    DateTime? dateOfBirth, // Only for children
     required String profilePhoto,
     required String govId,
     String? schoolId, // Only for children
@@ -238,7 +239,7 @@ class FirebaseFunctions {
     String? driverLicense, // Only for adults (Optional)
     required String address,
     String? gender, // Only for children
-    required String relationToChild,
+    String? relationToChild,
   }) async {
     String? userId = getCurrentUserId();
     if (userId == null) throw Exception("No authenticated user found.");
@@ -249,7 +250,8 @@ class FirebaseFunctions {
         "email": email ?? "",
         "phoneNumber": phoneNumber ?? "",
         "isAdult": isAdult,
-        "dateOfBirth": isAdult ? null : Timestamp.fromDate(DateTime.parse(dateOfBirth!)),
+        "dateOfBirth": isAdult ? null : Timestamp.fromDate(dateOfBirth!),
+        // "dateOfBirth": isAdult ? null : Timestamp.fromDate(DateTime.parse(dateOfBirth!)),
         "profilePhoto": profilePhoto,
         "govId": govId,
         "driverLicense": isAdult ? driverLicense ?? "" : null,
@@ -303,6 +305,37 @@ class FirebaseFunctions {
     } catch (e) {
       print("Error adding vehicle: $e");
       throw Exception("Failed to add vehicle.");
+    }
+  }
+
+  /// Fetches all family members of the logged-in user from Firestore
+  Future<List<Map<String, dynamic>>> getFamilyMembers() async {
+    User? user = _auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      QuerySnapshot snapshot = await _firestore.collection("users").doc(user.uid).collection("family").get();
+      return snapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id; // Store document ID for editing/deleting
+        return data;
+      }).toList();
+    } catch (e) {
+      print("Error fetching family members: $e");
+      return [];
+    }
+  }
+
+  /// Deletes a family member from Firestore
+  Future<void> deleteFamilyMember(String memberId) async {
+    User? user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await _firestore.collection("users").doc(user.uid).collection("family").doc(memberId).delete();
+      print("Family member deleted successfully.");
+    } catch (e) {
+      print("Error deleting family member: $e");
     }
   }
 
