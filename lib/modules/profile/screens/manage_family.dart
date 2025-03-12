@@ -12,6 +12,8 @@ class ManageFamilyScreen extends StatefulWidget {
 class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
   final FirebaseFunctions _firebaseFunctions = FirebaseFunctions();
 
+  String? _ownerAddress; // Stores the logged-in user's address
+
   // Controllers for input fields
   final TextEditingController _nameController = TextEditingController(text: 'Seema Jain');
   final TextEditingController _emailController = TextEditingController(text: 'seemajain@gmail.com');
@@ -23,6 +25,7 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
   final TextEditingController _gradeController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
 
+
   // Selection states
   bool _isAdult = true; // Toggle between Adult & Child
   String? _gender; // Gender selection for children
@@ -31,6 +34,12 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
   String? _govId;
   String? _schoolId;
   String? _driverLicense;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchOwnerAddress(); // Fetches the logged-in user's address
+  }
 
   /// Toggles between Adult & Child view
   void _toggleType(bool isAdult) {
@@ -79,6 +88,19 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Family Member Added!")));
     _clearFields();
+  }
+
+  /// Fetch the account owner's address when the screen loads
+  Future<void> _fetchOwnerAddress() async {
+    var userData = await _firebaseFunctions.getUserData();
+    if (userData != null) {
+      print("Owner Address Fetched: ${userData["address"]}"); // Debug print
+      setState(() {
+        _ownerAddress = userData["address"];
+      });
+    } else {
+      print("No address found for owner!"); // Debugging output
+    }
   }
 
   /// Clears form fields after successful save
@@ -165,7 +187,24 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
             if (!_isAdult) _buildFileUploadSection("School ID", _schoolId, "schoolId"),
 
             /// Address Input
-            _buildTextField("Address", _addressController),
+            /// UI: Add a button to autofill the address field
+            TextField(
+              controller: _addressController,
+              decoration: InputDecoration(
+                labelText: "Address",
+                suffixIcon: _ownerAddress != null
+                    ? IconButton(
+                        icon: Icon(Icons.home),
+                        onPressed: () {
+                          setState(() {
+                            _addressController.text = _ownerAddress!;
+                          });
+                        },
+                        tooltip: "Use Account Owner's Address",
+                      )
+                    : null,
+              ),
+            ),
 
             /// Relation to Child
             DropdownButtonFormField<String>(
