@@ -379,121 +379,67 @@ class FirebaseFunctions {
     }
   }
 
-   /// ✅ **Add a Vehicle**
-  Future<void> addVehicle({
-    required String vehicleMake,
-    required String vehicleModel,
-    required int vehicleYear,
-    required String vehicleColor,
-    required String vehicleLicenseNumber,
-    required String vehicleRegistrationNumber,
-    required int seatingCapacity,
-    required String vehicleImage,
-    required String registrationDocument,
-  }) async {
-    String? userId = getCurrentUserId();
-    if (userId == null) throw Exception("User not authenticated.");
+    /// 🔹 **Adds a new vehicle to Firestore**
+  Future<void> addVehicle(Map<String, dynamic> vehicleData) async {
+    User? user = _auth.currentUser;
+    if (user == null) throw Exception("No authenticated user found.");
 
     try {
-      // Generate a new vehicle document ID
-      DocumentReference vehicleRef = _firestore.collection("users").doc(userId).collection("vehicles").doc();
-
-      await vehicleRef.set({
-        "vehicleMake": vehicleMake,
-        "vehicleModel": vehicleModel,
-        "vehicleYear": vehicleYear,
-        "vehicleColor": vehicleColor,
-        "vehicleLicenseNumber": vehicleLicenseNumber,
-        "vehicleRegistrationNumber": vehicleRegistrationNumber,
-        "seatingCapacity": seatingCapacity,
-        "vehicleImage": vehicleImage,
-        "registrationDocument": registrationDocument,
-      });
-
-      print("🚗 Vehicle added successfully!");
+      await _firestore.collection("users").doc(user.uid).collection("vehicles").add(vehicleData);
+      print("✅ Vehicle added successfully.");
     } catch (e) {
-      print("🔥 Error adding vehicle: $e");
+      print("❌ Error adding vehicle: $e");
       throw Exception("Failed to add vehicle.");
     }
   }
 
-  /// ✅ **Retrieve Vehicles**
-  Future<List<Map<String, dynamic>>> getVehicles() async {
-    String? userId = getCurrentUserId();
-    if (userId == null) throw Exception("User not authenticated.");
+  /// 🔹 **Updates an existing vehicle in Firestore**
+  Future<void> updateVehicle(String vehicleId, Map<String, dynamic> vehicleData) async {
+    User? user = _auth.currentUser;
+    if (user == null) throw Exception("No authenticated user found.");
 
     try {
-      QuerySnapshot vehicleSnapshot = await _firestore.collection("users").doc(userId).collection("vehicles").get();
-
-      List<Map<String, dynamic>> vehicles = vehicleSnapshot.docs.map((doc) {
-        return {
-          "id": doc.id,
-          "vehicleMake": doc["vehicleMake"],
-          "vehicleModel": doc["vehicleModel"],
-          "vehicleYear": doc["vehicleYear"],
-          "vehicleColor": doc["vehicleColor"],
-          "vehicleLicenseNumber": doc["vehicleLicenseNumber"],
-          "vehicleRegistrationNumber": doc["vehicleRegistrationNumber"],
-          "seatingCapacity": doc["seatingCapacity"],
-          "vehicleImage": doc["vehicleImage"],
-          "registrationDocument": doc["registrationDocument"],
-        };
-      }).toList();
-
-      return vehicles;
+      await _firestore.collection("users").doc(user.uid).collection("vehicles").doc(vehicleId).update(vehicleData);
+      print("✅ Vehicle updated successfully.");
     } catch (e) {
-      print("🔥 Error fetching vehicles: $e");
-      return [];
-    }
-  }
-
-  /// ✅ **Update Vehicle Details**
-  Future<void> updateVehicle({
-    required String vehicleId,
-    required String vehicleMake,
-    required String vehicleModel,
-    required int vehicleYear,
-    required String vehicleColor,
-    required String vehicleLicenseNumber,
-    required String vehicleRegistrationNumber,
-    required int seatingCapacity,
-    required String vehicleImage,
-    required String registrationDocument,
-  }) async {
-    String? userId = getCurrentUserId();
-    if (userId == null) throw Exception("User not authenticated.");
-
-    try {
-      await _firestore.collection("users").doc(userId).collection("vehicles").doc(vehicleId).update({
-        "vehicleMake": vehicleMake,
-        "vehicleModel": vehicleModel,
-        "vehicleYear": vehicleYear,
-        "vehicleColor": vehicleColor,
-        "vehicleLicenseNumber": vehicleLicenseNumber,
-        "vehicleRegistrationNumber": vehicleRegistrationNumber,
-        "seatingCapacity": seatingCapacity,
-        "vehicleImage": vehicleImage,
-        "registrationDocument": registrationDocument,
-      });
-
-      print("✏️ Vehicle updated successfully!");
-    } catch (e) {
-      print("🔥 Error updating vehicle: $e");
+      print("❌ Error updating vehicle: $e");
       throw Exception("Failed to update vehicle.");
     }
   }
 
-  /// ✅ **Delete a Vehicle**
+  /// 🔹 **Deletes a vehicle from Firestore**
   Future<void> deleteVehicle(String vehicleId) async {
-    String? userId = getCurrentUserId();
-    if (userId == null) throw Exception("User not authenticated.");
+    User? user = _auth.currentUser;
+    if (user == null) throw Exception("No authenticated user found.");
 
     try {
-      await _firestore.collection("users").doc(userId).collection("vehicles").doc(vehicleId).delete();
-      print("🗑️ Vehicle deleted successfully!");
+      await _firestore.collection("users").doc(user.uid).collection("vehicles").doc(vehicleId).delete();
+      print("✅ Vehicle deleted successfully.");
     } catch (e) {
-      print("🔥 Error deleting vehicle: $e");
+      print("❌ Error deleting vehicle: $e");
       throw Exception("Failed to delete vehicle.");
+    }
+  }
+
+  /// 🔹 **Retrieves the list of vehicles for the logged-in user**
+  Future<List<Map<String, dynamic>>> getVehicles() async {
+    User? user = _auth.currentUser;
+    if (user == null) throw Exception("No authenticated user found.");
+
+    try {
+      QuerySnapshot vehicleSnapshot =
+          await _firestore.collection("users").doc(user.uid).collection("vehicles").get();
+
+      List<Map<String, dynamic>> vehicles = vehicleSnapshot.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        data["id"] = doc.id; // Include document ID for editing/deleting
+        return data;
+      }).toList();
+
+      return vehicles;
+    } catch (e) {
+      print("❌ Error fetching vehicles: $e");
+      throw Exception("Failed to retrieve vehicles.");
     }
   }
 }

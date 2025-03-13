@@ -20,6 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   List<Map<String, dynamic>> _adults = []; // Stores list of adult family members
   List<Map<String, dynamic>> _children = []; // Stores list of child family members
+  List<Map<String, dynamic>> _vehicles = []; // Stores list of vehicles
   bool _isLoading = true; // Tracks loading state
 
   // Controllers for text fields, allowing users to edit their details
@@ -41,6 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     _loadUserProfile(); // Fetch user data when the screen loads
     _loadFamilyMembers(); // Fetch family members on screen load
+    _loadVehicles(); // Fetch user's vehicles
   }
 
   /// Fetches the user's profile data from Firestore
@@ -135,12 +137,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Navigates to Manage Family screen for editing a family member
   void _editFamilyMember(Map<String, dynamic> memberData) {
     Navigator.pushNamed(context, AppRoutes.manageFamily, arguments: memberData);
-  }  
+  }
+
+    /// Fetches the user's vehicles from Firestore
+  Future<void> _loadVehicles() async {
+    List<Map<String, dynamic>> vehicleData = await _firebaseFunctions.getVehicles();
+
+    setState(() {
+      _vehicles = vehicleData;
+      _isLoading = false;
+    });
+  }
+
+    /// Deletes a vehicle after confirmation
+  void _deleteVehicle(String vehicleId) async {
+    bool confirmDelete = await _showDeleteVehicleConfirmationDialog();
+    if (confirmDelete) {
+      await _firebaseFunctions.deleteVehicle(vehicleId);
+      _loadVehicles(); // Refresh list after deletion
+    }
+  }
+
+    /// Shows a confirmation dialog before deleting a vehicle
+  Future<bool> _showDeleteVehicleConfirmationDialog() async {
+    return await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text("Delete Vehicle"),
+            content: Text("Are you sure you want to remove this vehicle?"),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context, false), child: Text("Cancel")),
+              TextButton(onPressed: () => Navigator.pop(context, true), child: Text("Delete", style: TextStyle(color: Colors.red))),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  /// Navigates to Manage Vehicles screen for adding/editing a vehicle
+  void _manageVehicle({Map<String, dynamic>? vehicleData}) {
+    Navigator.pushNamed(context, AppRoutes.manageVehicles, arguments: vehicleData).then((_) => _loadVehicles());
+  }
 
   /// Logs the user out and navigates back to the login screen
   Future<void> _logout() async {
-    await _authService.logout(context); // Now properly handles logout and navigation
-  }
+    await _authService.logout(context); // Properly handles logout and navigation
+  }  
 
   @override
   Widget build(BuildContext context) {
@@ -230,6 +272,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text("Children", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               _buildFamilyList(_children),
             ],
+
+            SizedBox(height: 20),
+
+            /// Manage Vehicles Button
+            ElevatedButton.icon(
+              onPressed: () => _manageVehicle(),
+              icon: Icon(Icons.directions_car),
+              label: Text("Manage Vehicles"),
+            ),
+
+            SizedBox(height: 20),
+
+            /// Vehicles List Section
+            if (_vehicles.isNotEmpty) ...[
+              Text("Your Vehicles", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              SizedBox(height: 10),
+              _buildVehicleList(),
+            ],            
           ],
         ),
       ),
@@ -302,5 +362,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return age;
+  }
+
+  /// Builds a scrollable list of vehicles
+  Widget _buildVehicleList() {
+    return Column(
+      children: _vehicles.map((vehicle) {
+        return Card(
+          elevation: 2,
+          margin: EdgeInsets.symmetric(vertical: 5),
+          child: ListTile(
+            leading: vehicle['vehicleImage'] != null
+                ? Image.file(File(vehicle['vehicleImage']), width: 50, height: 50, fit: BoxFit.cover)
+                : Icon(Icons.directions_car, size: 50),
+            title: Text("${vehicle['vehicleMake']} ${vehicle['vehicleModel']}"),
+            subtitle: Text("License No: ${vehicle['vehicleLicenseNumber']}"),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(icon: Icon(Icons.edit), onPressed: () => _manageVehicle(vehicleData: vehicle)), // Edit Button
+                IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVehicle(vehicle['id'])), // Delete Button
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 }
