@@ -272,42 +272,6 @@ class FirebaseFunctions {
     }
   }
 
-  /// Adds a new vehicle to the logged-in user's collection
-  Future<void> addVehicle({
-    required String make,
-    required String model,
-    required int year,
-    required String color,
-    required String licenseNumber,
-    required String registrationNumber,
-    required String vehicleImage,
-    required String registrationImage,
-    required int seatingCapacity,
-  }) async {
-    String? userId = getCurrentUserId();
-    if (userId == null) throw Exception("No authenticated user found.");
-
-    try {
-      await _firestore.collection("users").doc(userId).collection("vehicles").add({
-        "make": make,
-        "model": model,
-        "year": year,
-        "color": color,
-        "licenseNumber": licenseNumber,
-        "registrationNumber": registrationNumber,
-        "vehicleImage": vehicleImage,
-        "registrationImage": registrationImage,
-        "seatingCapacity": seatingCapacity,
-        "timestamp": FieldValue.serverTimestamp(),
-      });
-
-      print("Vehicle added successfully.");
-    } catch (e) {
-      print("Error adding vehicle: $e");
-      throw Exception("Failed to add vehicle.");
-    }
-  }
-
   /// Fetches all family members of the logged-in user from Firestore
   Future<List<Map<String, dynamic>>> getFamilyMembers() async {
     User? user = _auth.currentUser;
@@ -412,6 +376,124 @@ class FirebaseFunctions {
     } catch (e) {
       print("Error updating family member: $e");
       throw Exception("Failed to update family member.");
+    }
+  }
+
+   /// ✅ **Add a Vehicle**
+  Future<void> addVehicle({
+    required String vehicleMake,
+    required String vehicleModel,
+    required int vehicleYear,
+    required String vehicleColor,
+    required String vehicleLicenseNumber,
+    required String vehicleRegistrationNumber,
+    required int seatingCapacity,
+    required String vehicleImage,
+    required String registrationDocument,
+  }) async {
+    String? userId = getCurrentUserId();
+    if (userId == null) throw Exception("User not authenticated.");
+
+    try {
+      // Generate a new vehicle document ID
+      DocumentReference vehicleRef = _firestore.collection("users").doc(userId).collection("vehicles").doc();
+
+      await vehicleRef.set({
+        "vehicleMake": vehicleMake,
+        "vehicleModel": vehicleModel,
+        "vehicleYear": vehicleYear,
+        "vehicleColor": vehicleColor,
+        "vehicleLicenseNumber": vehicleLicenseNumber,
+        "vehicleRegistrationNumber": vehicleRegistrationNumber,
+        "seatingCapacity": seatingCapacity,
+        "vehicleImage": vehicleImage,
+        "registrationDocument": registrationDocument,
+      });
+
+      print("🚗 Vehicle added successfully!");
+    } catch (e) {
+      print("🔥 Error adding vehicle: $e");
+      throw Exception("Failed to add vehicle.");
+    }
+  }
+
+  /// ✅ **Retrieve Vehicles**
+  Future<List<Map<String, dynamic>>> getVehicles() async {
+    String? userId = getCurrentUserId();
+    if (userId == null) throw Exception("User not authenticated.");
+
+    try {
+      QuerySnapshot vehicleSnapshot = await _firestore.collection("users").doc(userId).collection("vehicles").get();
+
+      List<Map<String, dynamic>> vehicles = vehicleSnapshot.docs.map((doc) {
+        return {
+          "id": doc.id,
+          "vehicleMake": doc["vehicleMake"],
+          "vehicleModel": doc["vehicleModel"],
+          "vehicleYear": doc["vehicleYear"],
+          "vehicleColor": doc["vehicleColor"],
+          "vehicleLicenseNumber": doc["vehicleLicenseNumber"],
+          "vehicleRegistrationNumber": doc["vehicleRegistrationNumber"],
+          "seatingCapacity": doc["seatingCapacity"],
+          "vehicleImage": doc["vehicleImage"],
+          "registrationDocument": doc["registrationDocument"],
+        };
+      }).toList();
+
+      return vehicles;
+    } catch (e) {
+      print("🔥 Error fetching vehicles: $e");
+      return [];
+    }
+  }
+
+  /// ✅ **Update Vehicle Details**
+  Future<void> updateVehicle({
+    required String vehicleId,
+    required String vehicleMake,
+    required String vehicleModel,
+    required int vehicleYear,
+    required String vehicleColor,
+    required String vehicleLicenseNumber,
+    required String vehicleRegistrationNumber,
+    required int seatingCapacity,
+    required String vehicleImage,
+    required String registrationDocument,
+  }) async {
+    String? userId = getCurrentUserId();
+    if (userId == null) throw Exception("User not authenticated.");
+
+    try {
+      await _firestore.collection("users").doc(userId).collection("vehicles").doc(vehicleId).update({
+        "vehicleMake": vehicleMake,
+        "vehicleModel": vehicleModel,
+        "vehicleYear": vehicleYear,
+        "vehicleColor": vehicleColor,
+        "vehicleLicenseNumber": vehicleLicenseNumber,
+        "vehicleRegistrationNumber": vehicleRegistrationNumber,
+        "seatingCapacity": seatingCapacity,
+        "vehicleImage": vehicleImage,
+        "registrationDocument": registrationDocument,
+      });
+
+      print("✏️ Vehicle updated successfully!");
+    } catch (e) {
+      print("🔥 Error updating vehicle: $e");
+      throw Exception("Failed to update vehicle.");
+    }
+  }
+
+  /// ✅ **Delete a Vehicle**
+  Future<void> deleteVehicle(String vehicleId) async {
+    String? userId = getCurrentUserId();
+    if (userId == null) throw Exception("User not authenticated.");
+
+    try {
+      await _firestore.collection("users").doc(userId).collection("vehicles").doc(vehicleId).delete();
+      print("🗑️ Vehicle deleted successfully!");
+    } catch (e) {
+      print("🔥 Error deleting vehicle: $e");
+      throw Exception("Failed to delete vehicle.");
     }
   }
 }
