@@ -37,6 +37,29 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
   void initState() {
     super.initState();
     _initializeForm();
+
+    // Retrieve vehicle data if passed for editing
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final Map<String, dynamic>? vehicleData =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+
+    if (vehicleData != null) {
+      setState(() {
+        _vehicleId = vehicleData['id']; // Store vehicle ID for updates
+        _makeController.text = vehicleData['vehicleMake'] ?? "";
+        _modelController.text = vehicleData['vehicleModel'] ?? "";
+        _yearController.text = vehicleData['vehicleYear']?.toString() ?? "";
+        _colorController.text = vehicleData['vehicleColor'] ?? "";
+        _licenseNumberController.text = vehicleData['vehicleLicenseNumber'] ?? "";
+        _registrationNumberController.text = vehicleData['vehicleRegistrationNumber'] ?? "";
+        _seatingCapacityController.text = vehicleData['seatingCapacity']?.toString() ?? "";
+
+        // ✅ Assign file paths for existing uploads
+        _vehicleImage = vehicleData['vehicleImage']; // Local path for vehicle image
+        _registrationDocument = vehicleData['registrationDocument']; // Local path for registration document
+      });
+    }
+  });
   }
 
   /// If editing, load vehicle data into form fields

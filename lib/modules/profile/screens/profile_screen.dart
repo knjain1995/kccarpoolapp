@@ -176,7 +176,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// Navigates to Manage Vehicles screen for adding/editing a vehicle
   void _manageVehicle({Map<String, dynamic>? vehicleData}) {
-    Navigator.pushNamed(context, AppRoutes.manageVehicles, arguments: vehicleData).then((_) => _loadVehicles());
+    Navigator.pushNamed(
+      context,
+      AppRoutes.manageVehicles,
+      arguments: vehicleData, // ✅ Pass vehicle data if editing
+    ).then((_) => _loadVehicles()); // ✅ Reload vehicles after returning
   }
 
   /// Logs the user out and navigates back to the login screen
