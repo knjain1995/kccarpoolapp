@@ -368,4 +368,50 @@ class FirebaseFunctions {
       throw Exception("Failed to fetch data.");
     }
   }
+
+  /// ✅ Updates an existing family member in Firestore
+  Future<void> updateFamilyMember({
+    required String memberId,
+    required String fullName,
+    required String? email,
+    required String? phoneNumber,
+    required bool isAdult,
+    DateTime? dateOfBirth,
+    required String profilePhoto,
+    required String govId,
+    String? schoolId,
+    String? schoolName,
+    String? schoolIdNo,
+    String? grade,
+    String? driverLicense,
+    required String address,
+    String? gender,
+    String? relationToChild,
+  }) async {
+    String? userId = getCurrentUserId();
+    if (userId == null) throw Exception("No authenticated user found.");
+
+    try {
+      await _firestore.collection("users").doc(userId).collection("family").doc(memberId).update({
+        "fullName": fullName,
+        "email": email ?? "",
+        "phoneNumber": phoneNumber ?? "",
+        "isAdult": isAdult,
+        "dateOfBirth": isAdult ? null : Timestamp.fromDate(dateOfBirth!),
+        "profilePhoto": profilePhoto,
+        "govId": govId,
+        "driverLicense": isAdult ? driverLicense ?? "" : null,
+        "schoolId": isAdult ? null : schoolId ?? "",
+        "schoolName": isAdult ? null : schoolName ?? "",
+        "schoolIdNo": isAdult ? null : schoolIdNo ?? "",
+        "grade": isAdult ? null : grade ?? "",
+        "address": address,
+        "gender": isAdult ? null : gender,
+        "relationToChild": relationToChild,
+      });
+    } catch (e) {
+      print("Error updating family member: $e");
+      throw Exception("Failed to update family member.");
+    }
+  }
 }

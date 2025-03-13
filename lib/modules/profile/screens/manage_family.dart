@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import for handling Firestore Timestamp
+
 
 /// Manages adding family members (Adults & Children) for the account owner
 class ManageFamilyScreen extends StatefulWidget {
@@ -14,6 +16,7 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
   final FirebaseFunctions _firebaseFunctions = FirebaseFunctions();
 
   String? _ownerAddress; // Stores the logged-in user's address
+  String? _memberId; // ✅ Used to track if we are editing a family member
 
   // Controllers for input fields
   final TextEditingController _nameController = TextEditingController(text: 'Seema Jain');
@@ -21,7 +24,7 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
   final TextEditingController _phoneController = TextEditingController(text: '9540105173');
   final TextEditingController _dateOfBirthController = TextEditingController();
   final TextEditingController _schoolNameController = TextEditingController();
-  final TextEditingController _schoolIdController = TextEditingController();
+  // final TextEditingController _schoolIdController = TextEditingController();
   final TextEditingController _schoolIdNoController = TextEditingController();
   final TextEditingController _gradeController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
@@ -47,6 +50,7 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
         final Map<String, dynamic>? memberData = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
         if (memberData != null) {
             setState(() {
+                _memberId = memberData["id"]; // ✅ Store ID for updates
                 _nameController.text = memberData["fullName"] ?? "";
                 _emailController.text = memberData["email"] ?? "";
                 _phoneController.text = memberData["phoneNumber"] ?? "";
@@ -56,6 +60,21 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
                 _driverLicense = memberData["driverLicense"];
                 _relationToChild = memberData["relationToChild"];
                 _isAdult = memberData["isAdult"] ?? true;
+
+                // ✅ Ensure child-specific fields are populated correctly
+                if (!_isAdult) {
+                  _selectedDateOfBirth = memberData["dateOfBirth"] != null
+                      ? (memberData["dateOfBirth"] as Timestamp).toDate()
+                      : null;
+                  _dateOfBirthController.text = _selectedDateOfBirth != null
+                      ? _selectedDateOfBirth!.toLocal().toString().split(' ')[0]
+                      : "";
+                  _schoolNameController.text = memberData["schoolName"] ?? "";
+                  _schoolIdNoController.text = memberData["schoolIdNo"] ?? "";
+                  _gradeController.text = memberData["grade"] ?? "";
+                  _gender = memberData["gender"];
+                  _schoolId = memberData["schoolId"];
+                }                
             });
         }
     });
@@ -93,29 +112,50 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select a valid Date of Birth!")));
       return;
     }
-
-    await _firebaseFunctions.addFamilyMember(
-      fullName: _nameController.text.trim(),
-      email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-      phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
-      isAdult: _isAdult,
-      dateOfBirth: _isAdult ? null : _selectedDateOfBirth, // 🔹 Store as timestamp in Firestore
-      // dateOfBirth: _isAdult ? null : _dateOfBirthController.text.trim(),
-      profilePhoto: _profilePhoto!,
-      govId: _govId!,
-      schoolId: _isAdult ? null : _schoolId ?? "",
-      schoolName: _isAdult ? null : _schoolNameController.text.trim(),
-      schoolIdNo: _isAdult ? null : _schoolIdNoController.text.trim(),
-      grade: _isAdult ? null : _gradeController.text.trim(),
-      driverLicense: _isAdult ? _driverLicense ?? "" : null,
-      address: _addressController.text.trim(),
-      gender: _isAdult ? null : (_gender ?? ""),
-      // relationToChild: _isAdult ? _relationToChild! : null, // 🔹 Removed for Children
-      relationToChild: _isAdult ? _relationToChild! : null, // 🔹 Removed for Children
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Family Member Added!")));
-    _clearFields();
+    
+    if (_memberId != null) {
+      await _firebaseFunctions.updateFamilyMember(
+        memberId: _memberId!,
+        fullName: _nameController.text.trim(),
+        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        isAdult: _isAdult,
+        dateOfBirth: _isAdult ? null : _selectedDateOfBirth,
+        profilePhoto: _profilePhoto!,
+        govId: _govId!,
+        schoolId: _isAdult ? null : _schoolId ?? "",
+        schoolName: _isAdult ? null : _schoolNameController.text.trim(),
+        schoolIdNo: _isAdult ? null : _schoolIdNoController.text.trim(),
+        grade: _isAdult ? null : _gradeController.text.trim(),
+        driverLicense: _isAdult ? _driverLicense ?? "" : null,
+        address: _addressController.text.trim(),
+        gender: _isAdult ? null : (_gender ?? ""),
+        relationToChild: _isAdult ? _relationToChild! : null,
+      );
+    } else {
+        await _firebaseFunctions.addFamilyMember(
+        fullName: _nameController.text.trim(),
+        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        isAdult: _isAdult,
+        dateOfBirth: _isAdult ? null : _selectedDateOfBirth, // 🔹 Store as timestamp in Firestore
+        // dateOfBirth: _isAdult ? null : _dateOfBirthController.text.trim(),
+        profilePhoto: _profilePhoto!,
+        govId: _govId!,
+        schoolId: _isAdult ? null : _schoolId ?? "",
+        schoolName: _isAdult ? null : _schoolNameController.text.trim(),
+        schoolIdNo: _isAdult ? null : _schoolIdNoController.text.trim(),
+        grade: _isAdult ? null : _gradeController.text.trim(),
+        driverLicense: _isAdult ? _driverLicense ?? "" : null,
+        address: _addressController.text.trim(),
+        gender: _isAdult ? null : (_gender ?? ""),
+        // relationToChild: _isAdult ? _relationToChild! : null, // 🔹 Removed for Children
+        relationToChild: _isAdult ? _relationToChild! : null, // 🔹 Removed for Children
+      );
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Family Member Saved!")));
+    // _clearFields();
+    Navigator.pop(context); // ✅ Go back to Profile screen after saving
   }
 
   /// Fetch the account owner's address when the screen loads
@@ -140,7 +180,7 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
       _dateOfBirthController.clear();
       _selectedDateOfBirth = null;
       _schoolNameController.clear();
-      _schoolIdController.clear();
+      // _schoolIdController.clear();
       _schoolIdNoController.clear();
       _gradeController.clear();
       _addressController.clear();
