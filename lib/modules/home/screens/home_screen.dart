@@ -35,10 +35,22 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
         body: Center(
-          child: Text("Welcome to the Home Screen!"),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // ✅ Create Carpool Button
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pushNamed(context, AppRoutes.createCarpool);
+                },
+                icon: Icon(Icons.add_circle_outline),
+                label: Text("Create Carpool"),
+              ),
+            ],
+          ),
         ),
       ),
-    );
+    ); // ✅ Corrected closing brackets
   }
 }
 

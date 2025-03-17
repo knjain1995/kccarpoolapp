@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/modules/auth/screens/forgot_password_screen.dart';
 import 'package:kccarpoolapp/modules/auth/screens/login_screen.dart';
 import 'package:kccarpoolapp/modules/auth/screens/verification_screen.dart';
+import 'package:kccarpoolapp/modules/carpool/screens/create_carpool.dart';
 import 'package:kccarpoolapp/modules/home/screens/home_screen.dart';
 import 'package:kccarpoolapp/modules/onboarding/onboarding_screen.dart';
 import 'package:kccarpoolapp/modules/profile/screens/manage_family.dart';
 import 'package:kccarpoolapp/modules/profile/screens/manage_vehicles.dart';
-import 'package:kccarpoolapp/modules/profile/screens/profile_screen.dart'; // Added profile screen
+import 'package:kccarpoolapp/modules/profile/screens/profile_screen.dart';
 
 class AppRoutes {
   static const String onboarding = '/onboarding';
@@ -18,6 +19,8 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String manageFamily = '/manage-family';
   static const String manageVehicles = 'manage-vehicles';
+  static const String createCarpool = '/createCarpool';
+
 
   static Map<String, WidgetBuilder> routes = {
     onboarding: (context) => OnboardingScreen(),
@@ -28,5 +31,6 @@ class AppRoutes {
     profile: (context) => ProfileScreen(),
     manageFamily: (context) => ManageFamilyScreen(),
     manageVehicles: (context) => ManageVehiclesScreen(),
+    createCarpool: (context) => CreateCarpoolScreen(),
   };
 }
