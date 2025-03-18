@@ -1,7 +1,9 @@
 // Filename: home_screen.dart  Location: lib/modules/home/screens/
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/core/routes.dart';
-import 'package:kccarpoolapp/services/auth_service.dart'; // Import AuthService
+import 'package:kccarpoolapp/services/auth_service.dart';
+import 'package:kccarpoolapp/services/firebase_functions.dart'; // Import AuthService
 
 /// HomeScreen - Main screen after user logs in.
 class HomeScreen extends StatelessWidget {
@@ -46,6 +48,30 @@ class HomeScreen extends StatelessWidget {
                 icon: Icon(Icons.add_circle_outline),
                 label: Text("Create Carpool"),
               ),
+
+              ElevatedButton(
+  onPressed: () async {
+    try {
+      await FirebaseFunctions().createCarpool(
+        carpoolName: "School Pickup",
+        carpoolRouteStart: "Home",
+        carpoolRouteEnd: "ABC School",
+        carpoolDate: Timestamp.now(),
+        carpoolTime: Timestamp.now(),
+        carpoolIsRecurring: false,
+        carpoolVehicleId: "xyz987",
+        carpoolOwnerId: "user123",
+        carpoolDriverId: "user456",
+        carpoolCapacity: 4,
+        carpoolReturnTrip: false,
+      );
+      print("Carpool added successfully!");
+    } catch (e) {
+      print("Error: $e");
+    }
+  },
+  child: Text("Test Create Carpool"),
+),
             ],
           ),
         ),
