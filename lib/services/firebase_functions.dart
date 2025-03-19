@@ -449,7 +449,7 @@ class FirebaseFunctions {
     required String carpoolName,
     required String carpoolRouteStart,
     required String carpoolRouteEnd,
-    required Timestamp carpoolDate,
+    Timestamp? carpoolDate,
     required Timestamp carpoolTime,
     required bool carpoolIsRecurring,
     String? carpoolRecurringType,

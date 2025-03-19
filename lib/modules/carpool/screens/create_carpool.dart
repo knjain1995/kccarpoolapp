@@ -120,54 +120,54 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   }
 
   /// Handles form submission for creating a carpool
-  void _createCarpool() {
-    // ✅ Ensure validation is specific to One-Time or Recurring carpools
-    if (_carpoolNameController.text.isEmpty ||
-        _routeStartController.text.isEmpty ||
-        _routeEndController.text.isEmpty ||
-        (_isRecurring ? _recurringStartDate == null || _recurringEndDate == null : _selectedDate == null) ||
-        _selectedTime == null ||
-        _selectedVehicle == null ||
-        _selectedDriver == null ||
-        _selectedOwner == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please fill all required fields!")));
-      return;
-    }
+  // void _createCarpool() {
+  //   // ✅ Ensure validation is specific to One-Time or Recurring carpools
+  //   if (_carpoolNameController.text.isEmpty ||
+  //       _routeStartController.text.isEmpty ||
+  //       _routeEndController.text.isEmpty ||
+  //       (_isRecurring ? _recurringStartDate == null || _recurringEndDate == null : _selectedDate == null) ||
+  //       _selectedTime == null ||
+  //       _selectedVehicle == null ||
+  //       _selectedDriver == null ||
+  //       _selectedOwner == null) {
+  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please fill all required fields!")));
+  //     return;
+  //   }
 
-    // ✅ Convert DateTime to Firestore Timestamp
-    Timestamp carpoolDate = _isRecurring ? Timestamp.now() : Timestamp.fromDate(_selectedDate!);
-    Timestamp carpoolTime = Timestamp.fromDate(DateTime(
-      carpoolDate.toDate().year,
-      carpoolDate.toDate().month,
-      carpoolDate.toDate().day,
-      _selectedTime!.hour,
-      _selectedTime!.minute,
-    ));
+  //   // ✅ Convert DateTime to Firestore Timestamp
+  //   Timestamp carpoolDate = _isRecurring ? Timestamp.now() : Timestamp.fromDate(_selectedDate!);
+  //   Timestamp carpoolTime = Timestamp.fromDate(DateTime(
+  //     carpoolDate.toDate().year,
+  //     carpoolDate.toDate().month,
+  //     carpoolDate.toDate().day,
+  //     _selectedTime!.hour,
+  //     _selectedTime!.minute,
+  //   ));
 
-    Map<String, dynamic> carpoolData = {
-      "carpoolName": _carpoolNameController.text.trim(),
-      "carpoolRouteStart": _routeStartController.text.trim(),
-      "carpoolRouteEnd": _routeEndController.text.trim(),
-      "carpoolDate": _isRecurring ? null : carpoolDate,  // ✅ Only save carpoolDate for one-time carpools
-      "carpoolTime": carpoolTime,
-      "carpoolIsRecurring": _isRecurring,
-      "carpoolRecurringType": _isRecurring ? _recurringType : null,
-      "carpoolRecurringDays": _recurringType == "Weekly" ? _selectedDays : null,
-      "carpoolRecurringDates": _recurringType == "Monthly" ? _selectedDates : null,
-      "carpoolCustomDates": _recurringType == "Custom" ? _customDates.map((d) => d.toString()).toList() : null,
-      "carpoolStartDate": _isRecurring ? Timestamp.fromDate(_recurringStartDate!) : null,
-      "carpoolEndDate": _isRecurring ? Timestamp.fromDate(_recurringEndDate!) : null,
-      "carpoolVehicleId": _selectedVehicle,
-      "carpoolOwnerId": _selectedOwner,
-      "carpoolDriverId": _selectedDriver,
-      "carpoolCapacity": int.parse(_capacityController.text),
-      "carpoolReturnTrip": _hasReturnTrip,
-      "carpoolReturnStayOnLocation": _hasReturnTrip ? _stayOnLocation : null,
-      "carpoolStatus": "Available",
-    };
+  //   Map<String, dynamic> carpoolData = {
+  //     "carpoolName": _carpoolNameController.text.trim(),
+  //     "carpoolRouteStart": _routeStartController.text.trim(),
+  //     "carpoolRouteEnd": _routeEndController.text.trim(),
+  //     "carpoolDate": _isRecurring ? null : carpoolDate,  // ✅ Only save carpoolDate for one-time carpools
+  //     "carpoolTime": carpoolTime,
+  //     "carpoolIsRecurring": _isRecurring,
+  //     "carpoolRecurringType": _isRecurring ? _recurringType : null,
+  //     "carpoolRecurringDays": _recurringType == "Weekly" ? _selectedDays : null,
+  //     "carpoolRecurringDates": _recurringType == "Monthly" ? _selectedDates : null,
+  //     "carpoolCustomDates": _recurringType == "Custom" ? _customDates.map((d) => d.toString()).toList() : null,
+  //     "carpoolStartDate": _isRecurring ? Timestamp.fromDate(_recurringStartDate!) : null,
+  //     "carpoolEndDate": _isRecurring ? Timestamp.fromDate(_recurringEndDate!) : null,
+  //     "carpoolVehicleId": _selectedVehicle,
+  //     "carpoolOwnerId": _selectedOwner,
+  //     "carpoolDriverId": _selectedDriver,
+  //     "carpoolCapacity": int.parse(_capacityController.text),
+  //     "carpoolReturnTrip": _hasReturnTrip,
+  //     "carpoolReturnStayOnLocation": _hasReturnTrip ? _stayOnLocation : null,
+  //     "carpoolStatus": "Available",
+  //   };
 
-    print("Carpool Created: $carpoolData");
-  }
+  //   print("Carpool Created: $carpoolData");
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -248,7 +248,49 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               ),
 
             SizedBox(height: 20),
-            ElevatedButton(onPressed: _createCarpool, child: Text("Create Carpool")),
+            // ElevatedButton(onPressed: _createCarpool, child: Text("Create Carpool")),
+            ElevatedButton(
+              onPressed: () async {
+                if (_validateCarpoolInputs()) {
+                  await _firebaseFunctions.createCarpool(
+                    carpoolName: _carpoolNameController.text.trim(),
+                    carpoolRouteStart: _routeStartController.text.trim(),
+                    carpoolRouteEnd: _routeEndController.text.trim(),
+                    carpoolDate: _isRecurring ? null : Timestamp.fromDate(_selectedDate!),
+                    carpoolTime: Timestamp.fromDate(DateTime(
+                      _selectedDate!.year,
+                      _selectedDate!.month,
+                      _selectedDate!.day,
+                      _selectedTime!.hour,
+                      _selectedTime!.minute,
+                    )),
+                    carpoolIsRecurring: _isRecurring,
+                    carpoolRecurringType: _isRecurring ? _recurringType : null,
+                    
+                    // 🔹 Store _selectedDays as a list of strings (No conversion needed)
+                    carpoolRecurringDays: _recurringType == "Weekly" ? _selectedDays : null,
+                    
+                    // 🔹 Convert _customDates (List<DateTime>) to List<Timestamp>
+                    carpoolCustomDates: _recurringType == "Custom"
+                        ? _customDates.map((date) => Timestamp.fromDate(date)).toList()
+                        : null,
+
+                    carpoolStartDate: _isRecurring ? Timestamp.fromDate(_recurringStartDate!) : null,
+                    carpoolEndDate: _isRecurring ? Timestamp.fromDate(_recurringEndDate!) : null,
+                    carpoolVehicleId: _selectedVehicle!,
+                    carpoolOwnerId: _selectedOwner!,
+                    carpoolDriverId: _selectedDriver!,
+                    carpoolCapacity: int.parse(_capacityController.text),
+                    carpoolReturnTrip: _hasReturnTrip,
+                    carpoolReturnStayOnLocation: _hasReturnTrip ? _stayOnLocation : null,
+                  );
+
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Carpool Created Successfully!")));
+                  Navigator.pop(context);
+                }
+              },
+              child: Text("Create Carpool"),
+            ),
           ],
         ),
       ),
@@ -294,7 +336,14 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
           items: ["Daily", "Weekly", "Monthly", "Custom"].map((type) {
             return DropdownMenuItem(value: type, child: Text(type));
           }).toList(),
-          onChanged: (value) => setState(() => _recurringType = value as String),
+          onChanged: (value) {
+            setState(() {
+              _recurringType = value as String;
+              _selectedDays.clear();
+              _selectedDates.clear();
+              _customDates.clear();
+            });
+          },
           decoration: InputDecoration(labelText: "Recurring Type"),
         ),
 
@@ -304,29 +353,36 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
         // ✅ Daily Recurrence: Show Weekdays/Sat/Sun options
         if (_recurringType == "Daily") ...[
+          // Weekdays Only (Mon-Fri)
           CheckboxListTile(
             title: Text("Weekdays Only (Mon-Fri)"),
-            value: _selectedDays.contains("Weekdays"),
-            onChanged: (value) => setState(() {
-              if (value!) {
-                _selectedDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-              } else {
-                _selectedDays.clear();
-              }
-            }),
+            value: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].every((day) => _selectedDays.contains(day)),
+            onChanged: (value) {
+              setState(() {
+                if (value!) {
+                  _selectedDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+                } else {
+                  _selectedDays.removeWhere((day) => ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].contains(day));
+                }
+              });
+            },
           ),
+
+          // Include Saturday & Sunday
           CheckboxListTile(
-            title: Text("Include Saturday/Sunday"),
+            title: Text("Include Saturday & Sunday"),
             value: _selectedDays.contains("Saturday") || _selectedDays.contains("Sunday"),
-            onChanged: (value) => setState(() {
-              if (value!) {
-                _selectedDays.addAll(["Saturday", "Sunday"]);
-              } else {
-                _selectedDays.removeWhere((day) => day == "Saturday" || day == "Sunday");
-              }
-            }),
+            onChanged: (value) {
+              setState(() {
+                if (value!) {
+                  if (!_selectedDays.contains("Saturday")) _selectedDays.add("Saturday");
+                  if (!_selectedDays.contains("Sunday")) _selectedDays.add("Sunday");
+                } else {
+                  _selectedDays.removeWhere((day) => day == "Saturday" || day == "Sunday");
+                }
+              });
+            },
           ),
-        ],
 
         // ✅ Weekly Recurrence: Show Day Selection
         if (_recurringType == "Weekly") ...[
@@ -383,6 +439,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
           ),
         ],
       ],
+      ],
     );
   }
 
@@ -402,5 +459,42 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
         }
       });
     }
+  }
+
+    bool _validateCarpoolInputs() {
+    if (_carpoolNameController.text.isEmpty ||
+        _routeStartController.text.isEmpty ||
+        _routeEndController.text.isEmpty ||
+        (_isRecurring
+            ? _recurringStartDate == null || _recurringEndDate == null
+            : _selectedDate == null) ||
+        _selectedTime == null ||
+        _selectedVehicle == null ||
+        _selectedDriver == null ||
+        _selectedOwner == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please fill all required fields!")));
+      return false;
+    }
+
+    if (_isRecurring) {
+      if (_recurringType == "Daily" && _selectedDays.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select weekdays or weekends for daily recurrence!")));
+        return false;
+      }
+      if (_recurringType == "Weekly" && _selectedDays.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select at least one day for weekly recurrence!")));
+        return false;
+      }
+      if (_recurringType == "Monthly" && _selectedDates.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select at least one date for monthly recurrence!")));
+        return false;
+      }
+      if (_recurringType == "Custom" && _customDates.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select at least one custom date!")));
+        return false;
+      }
+    }
+
+    return true;
   }
 }
