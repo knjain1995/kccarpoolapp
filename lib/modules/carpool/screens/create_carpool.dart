@@ -27,8 +27,14 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   TimeOfDay? _selectedTime;
 
   // Toggle for Recurring Carpool
+  // Recurring Carpool
   bool _isRecurring = false;
-  String _recurringType = "Daily"; // Default option
+  String _recurringType = "Daily"; // Default value
+  DateTime? _recurringStartDate;
+  DateTime? _recurringEndDate;
+  List<String> _selectedDays = []; // For Weekly
+  List<int> _selectedDates = []; // For Monthly
+  List<DateTime> _customDates = []; // For Custom Recurrence
 
   // Vehicle & Driver Selection
   String? _selectedVehicle;
@@ -76,7 +82,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
 
   /// Opens a date picker & updates the selected date
-  Future<void> _pickDate() async {
+  Future<void> _pickDate({required bool isStartDate}) async {
     DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -86,7 +92,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
     if (pickedDate != null) {
       setState(() {
-        _selectedDate = pickedDate;
+        if (isStartDate) {
+          _selectedDate = pickedDate;
+        } else {
+          _recurringEndDate = pickedDate;
+        }
       });
     }
   }
@@ -137,6 +147,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       "carpoolTime": carpoolTime,
       "carpoolIsRecurring": _isRecurring,
       "carpoolRecurringType": _isRecurring ? _recurringType : null,
+      "carpoolRecurringDays": _recurringType == "Weekly" ? _selectedDays : null,
+      "carpoolRecurringDates": _recurringType == "Monthly" ? _selectedDates : null,
+      "carpoolCustomDates": _recurringType == "Custom" ? _customDates.map((d) => d.toString()).toList() : null,
+      "carpoolStartDate": _recurringStartDate != null ? Timestamp.fromDate(_recurringStartDate!) : null,
+      "carpoolEndDate": _recurringEndDate != null ? Timestamp.fromDate(_recurringEndDate!) : null,
       "carpoolVehicleId": _selectedVehicle,
       "carpoolOwnerId": _selectedOwner,
       "carpoolDriverId": _selectedDriver,
@@ -162,10 +177,13 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             _buildTextField("End Location", _routeEndController),
 
             // Date & Time Pickers
-            _buildDateTimePicker("Select Date", _selectedDate, _pickDate),
+            // _buildDateTimePicker("Select Date", _selectedDate, _pickDate),
+            _buildDateTimePicker("Select Start Date", _selectedDate, () => _pickDate(isStartDate: true)),
+            _buildDateTimePicker("Select End Date", _recurringEndDate, () => _pickDate(isStartDate: false)),
+
             _buildDateTimePicker("Select Time", _selectedTime, _pickTime),
 
-            // Recurring Carpool Toggle
+            // Recurring Carpool Options
             SwitchListTile(
               title: Text("Recurring Carpool"),
               value: _isRecurring,
@@ -173,14 +191,18 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             ),
 
             if (_isRecurring)
-            DropdownButtonFormField(
-              value: _recurringType.isNotEmpty ? _recurringType : "Daily", // ✅ Ensure default valid value
-              items: ["Daily", "Weekly", "Monthly", "Custom"].map((type) {
-                return DropdownMenuItem(value: type, child: Text(type));
-              }).toList(),
-              onChanged: (value) => setState(() => _recurringType = value as String),
-              decoration: InputDecoration(labelText: "Recurring Type"),
-            ),
+              Column(
+                children: [
+                  DropdownButtonFormField(
+                    value: _recurringType,
+                    items: ["Daily", "Weekly", "Monthly", "Custom"].map((type) {
+                      return DropdownMenuItem(value: type, child: Text(type));
+                    }).toList(),
+                    onChanged: (value) => setState(() => _recurringType = value as String),
+                    decoration: InputDecoration(labelText: "Recurring Type"),
+                  ),
+                ],
+              ),
 
             // Vehicle Selection
             _buildDropdown("Select Vehicle", _selectedVehicle, _vehicles, "vehicleId", "vehicleMake"),
