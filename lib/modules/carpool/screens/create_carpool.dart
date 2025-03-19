@@ -92,10 +92,14 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
     if (pickedDate != null) {
       setState(() {
-        if (isStartDate) {
-          _selectedDate = pickedDate;
+        if (_isRecurring) {
+          if (isStartDate) {
+            _recurringStartDate = pickedDate;
+          } else {
+            _recurringEndDate = pickedDate;
+          }
         } else {
-          _recurringEndDate = pickedDate;
+          _selectedDate = pickedDate;
         }
       });
     }
@@ -120,7 +124,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     if (_carpoolNameController.text.isEmpty ||
         _routeStartController.text.isEmpty ||
         _routeEndController.text.isEmpty ||
-        _selectedDate == null ||
+        (_isRecurring ? _recurringStartDate == null || _recurringEndDate == null : _selectedDate == null) ||
         _selectedTime == null ||
         _selectedVehicle == null ||
         _selectedDriver == null ||
@@ -130,11 +134,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     }
 
     // Convert DateTime to Firestore Timestamp
-    Timestamp carpoolDate = Timestamp.fromDate(_selectedDate!);
+    Timestamp carpoolDate = _selectedDate != null ? Timestamp.fromDate(_selectedDate!) : Timestamp.now();
     Timestamp carpoolTime = Timestamp.fromDate(DateTime(
-      _selectedDate!.year,
-      _selectedDate!.month,
-      _selectedDate!.day,
+      carpoolDate.toDate().year,
+      carpoolDate.toDate().month,
+      carpoolDate.toDate().day,
       _selectedTime!.hour,
       _selectedTime!.minute,
     ));
@@ -177,11 +181,18 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             _buildTextField("End Location", _routeEndController),
 
             // Date & Time Pickers
-            // _buildDateTimePicker("Select Date", _selectedDate, _pickDate),
-            _buildDateTimePicker("Select Start Date", _selectedDate, () => _pickDate(isStartDate: true)),
-            _buildDateTimePicker("Select End Date", _recurringEndDate, () => _pickDate(isStartDate: false)),
-
+            if (!_isRecurring) _buildDateTimePicker("Select Date", _selectedDate, () => _pickDate(isStartDate: true)),
+            if (_isRecurring) ...[
+              _buildDateTimePicker("Start Date", _recurringStartDate, () => _pickDate(isStartDate: true)),
+              _buildDateTimePicker("End Date", _recurringEndDate, () => _pickDate(isStartDate: false)),
+            ],
             _buildDateTimePicker("Select Time", _selectedTime, _pickTime),
+
+            // _buildDateTimePicker("Select Date", _selectedDate, _pickDate),
+            // _buildDateTimePicker("Select Start Date", _selectedDate, () => _pickDate(isStartDate: true)),
+            // _buildDateTimePicker("Select End Date", _recurringEndDate, () => _pickDate(isStartDate: false)),
+
+            // _buildDateTimePicker("Select Time", _selectedTime, _pickTime),
 
             // Recurring Carpool Options
             SwitchListTile(
