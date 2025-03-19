@@ -121,6 +121,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
   /// Handles form submission for creating a carpool
   void _createCarpool() {
+    // ✅ Ensure validation is specific to One-Time or Recurring carpools
     if (_carpoolNameController.text.isEmpty ||
         _routeStartController.text.isEmpty ||
         _routeEndController.text.isEmpty ||
@@ -133,8 +134,8 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       return;
     }
 
-    // Convert DateTime to Firestore Timestamp
-    Timestamp carpoolDate = _selectedDate != null ? Timestamp.fromDate(_selectedDate!) : Timestamp.now();
+    // ✅ Convert DateTime to Firestore Timestamp
+    Timestamp carpoolDate = _isRecurring ? Timestamp.now() : Timestamp.fromDate(_selectedDate!);
     Timestamp carpoolTime = Timestamp.fromDate(DateTime(
       carpoolDate.toDate().year,
       carpoolDate.toDate().month,
@@ -147,15 +148,15 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       "carpoolName": _carpoolNameController.text.trim(),
       "carpoolRouteStart": _routeStartController.text.trim(),
       "carpoolRouteEnd": _routeEndController.text.trim(),
-      "carpoolDate": carpoolDate,
+      "carpoolDate": _isRecurring ? null : carpoolDate,  // ✅ Only save carpoolDate for one-time carpools
       "carpoolTime": carpoolTime,
       "carpoolIsRecurring": _isRecurring,
       "carpoolRecurringType": _isRecurring ? _recurringType : null,
       "carpoolRecurringDays": _recurringType == "Weekly" ? _selectedDays : null,
       "carpoolRecurringDates": _recurringType == "Monthly" ? _selectedDates : null,
       "carpoolCustomDates": _recurringType == "Custom" ? _customDates.map((d) => d.toString()).toList() : null,
-      "carpoolStartDate": _recurringStartDate != null ? Timestamp.fromDate(_recurringStartDate!) : null,
-      "carpoolEndDate": _recurringEndDate != null ? Timestamp.fromDate(_recurringEndDate!) : null,
+      "carpoolStartDate": _isRecurring ? Timestamp.fromDate(_recurringStartDate!) : null,
+      "carpoolEndDate": _isRecurring ? Timestamp.fromDate(_recurringEndDate!) : null,
       "carpoolVehicleId": _selectedVehicle,
       "carpoolOwnerId": _selectedOwner,
       "carpoolDriverId": _selectedDriver,
@@ -180,13 +181,25 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             _buildTextField("Start Location", _routeStartController),
             _buildTextField("End Location", _routeEndController),
 
+            // ✅ Recurring Carpool Options
+            SwitchListTile(
+              title: Text("Recurring Carpool"),
+              value: _isRecurring,
+              onChanged: (value) => setState(() => _isRecurring = value),
+            ),
+            
             // Date & Time Pickers
             if (!_isRecurring) _buildDateTimePicker("Select Date", _selectedDate, () => _pickDate(isStartDate: true)),
-            if (_isRecurring) ...[
-              _buildDateTimePicker("Start Date", _recurringStartDate, () => _pickDate(isStartDate: true)),
-              _buildDateTimePicker("End Date", _recurringEndDate, () => _pickDate(isStartDate: false)),
-            ],
-            _buildDateTimePicker("Select Time", _selectedTime, _pickTime),
+            
+            // ✅ Show Extra Recurring Options if Toggle is ON
+            _buildRecurringOptions(),
+            
+            // if (_isRecurring) ...[
+            //   _buildDateTimePicker("Start Date", _recurringStartDate, () => _pickDate(isStartDate: true)),
+            //   _buildDateTimePicker("End Date", _recurringEndDate, () => _pickDate(isStartDate: false)),
+            // ],
+
+            _buildDateTimePicker("Select Time", _selectedTime, _pickTime),// Recurring Carpool Options
 
             // _buildDateTimePicker("Select Date", _selectedDate, _pickDate),
             // _buildDateTimePicker("Select Start Date", _selectedDate, () => _pickDate(isStartDate: true)),
@@ -194,26 +207,19 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
             // _buildDateTimePicker("Select Time", _selectedTime, _pickTime),
 
-            // Recurring Carpool Options
-            SwitchListTile(
-              title: Text("Recurring Carpool"),
-              value: _isRecurring,
-              onChanged: (value) => setState(() => _isRecurring = value),
-            ),
-
-            if (_isRecurring)
-              Column(
-                children: [
-                  DropdownButtonFormField(
-                    value: _recurringType,
-                    items: ["Daily", "Weekly", "Monthly", "Custom"].map((type) {
-                      return DropdownMenuItem(value: type, child: Text(type));
-                    }).toList(),
-                    onChanged: (value) => setState(() => _recurringType = value as String),
-                    decoration: InputDecoration(labelText: "Recurring Type"),
-                  ),
-                ],
-              ),
+            // if (_isRecurring)
+            //   Column(
+            //     children: [
+            //       DropdownButtonFormField(
+            //         value: _recurringType,
+            //         items: ["Daily", "Weekly", "Monthly", "Custom"].map((type) {
+            //           return DropdownMenuItem(value: type, child: Text(type));
+            //         }).toList(),
+            //         onChanged: (value) => setState(() => _recurringType = value as String),
+            //         decoration: InputDecoration(labelText: "Recurring Type"),
+            //       ),
+            //     ],
+            //   ),
 
             // Vehicle Selection
             _buildDropdown("Select Vehicle", _selectedVehicle, _vehicles, "vehicleId", "vehicleMake"),
@@ -274,5 +280,127 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       onChanged: (value) => setState(() => selected = value as String?),
       decoration: InputDecoration(labelText: label),
     );
+  }
+
+  /// Builds the UI for Recurring Carpool options
+  Widget _buildRecurringOptions() {
+    if (!_isRecurring) return Container(); // ✅ If not recurring, show nothing
+
+    return Column(
+      children: [
+        // ✅ Recurrence Type Dropdown
+        DropdownButtonFormField(
+          value: _recurringType,
+          items: ["Daily", "Weekly", "Monthly", "Custom"].map((type) {
+            return DropdownMenuItem(value: type, child: Text(type));
+          }).toList(),
+          onChanged: (value) => setState(() => _recurringType = value as String),
+          decoration: InputDecoration(labelText: "Recurring Type"),
+        ),
+
+        // ✅ Start & End Date Pickers (Always for Recurring)
+        _buildDateTimePicker("Start Date", _recurringStartDate, () => _pickDate(isStartDate: true)),
+        _buildDateTimePicker("End Date", _recurringEndDate, () => _pickDate(isStartDate: false)),
+
+        // ✅ Daily Recurrence: Show Weekdays/Sat/Sun options
+        if (_recurringType == "Daily") ...[
+          CheckboxListTile(
+            title: Text("Weekdays Only (Mon-Fri)"),
+            value: _selectedDays.contains("Weekdays"),
+            onChanged: (value) => setState(() {
+              if (value!) {
+                _selectedDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+              } else {
+                _selectedDays.clear();
+              }
+            }),
+          ),
+          CheckboxListTile(
+            title: Text("Include Saturday/Sunday"),
+            value: _selectedDays.contains("Saturday") || _selectedDays.contains("Sunday"),
+            onChanged: (value) => setState(() {
+              if (value!) {
+                _selectedDays.addAll(["Saturday", "Sunday"]);
+              } else {
+                _selectedDays.removeWhere((day) => day == "Saturday" || day == "Sunday");
+              }
+            }),
+          ),
+        ],
+
+        // ✅ Weekly Recurrence: Show Day Selection
+        if (_recurringType == "Weekly") ...[
+          Wrap(
+            spacing: 8.0,
+            children: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                .map((day) => ChoiceChip(
+                      label: Text(day),
+                      selected: _selectedDays.contains(day),
+                      onSelected: (selected) {
+                        setState(() {
+                          selected ? _selectedDays.add(day) : _selectedDays.remove(day);
+                        });
+                      },
+                    ))
+                .toList(),
+          ),
+        ],
+
+        // ✅ Monthly Recurrence: Show Date Selection
+        if (_recurringType == "Monthly") ...[
+          Wrap(
+            spacing: 8.0,
+            children: List.generate(31, (index) => index + 1)
+                .map((day) => ChoiceChip(
+                      label: Text("$day"),
+                      selected: _selectedDates.contains(day),
+                      onSelected: (selected) {
+                        setState(() {
+                          selected ? _selectedDates.add(day) : _selectedDates.remove(day);
+                        });
+                      },
+                    ))
+                .toList(),
+          ),
+        ],
+
+        // ✅ Custom Recurrence: Show Calendar Selection
+        if (_recurringType == "Custom") ...[
+          ElevatedButton(
+            onPressed: _pickCustomDates,
+            child: Text("Select Custom Dates"),
+          ),
+          Wrap(
+            spacing: 8.0,
+            children: _customDates
+                .map((date) => Chip(
+                      label: Text(date.toLocal().toString().split(" ")[0]),
+                      onDeleted: () {
+                        setState(() => _customDates.remove(date));
+                      },
+                    ))
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Opens a date picker and allows multiple date selection for "Custom" recurrence
+  Future<void> _pickCustomDates() async {
+    DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        if (!_customDates.contains(pickedDate)) {
+          _customDates.add(pickedDate);
+        }
+      });
+    }
   }
 }
