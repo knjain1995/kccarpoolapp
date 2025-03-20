@@ -46,22 +46,38 @@ class FirebaseFunctions {
 
   /// Fetch user profile data from Firestore
   Future<Map<String, dynamic>?> getUserData() async {
-    User? user = _auth.currentUser;
-    if (user == null) return null; // No user logged in
-
     try {
-      DocumentSnapshot userDoc = await _firestore.collection("users").doc(user.uid).get();
+      String? userId = _auth.currentUser?.uid;
+      if (userId == null) return null;
 
+      DocumentSnapshot userDoc = await _firestore.collection("users").doc(userId).get();
       if (userDoc.exists) {
-        return userDoc.data() as Map<String, dynamic>; // Return user data
-      } else {
-        return null; // No data found
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        userData["id"] = userId; // ✅ Explicitly add user ID
+        return userData;
       }
     } catch (e) {
       print("Error fetching user data: $e");
-      return null;
     }
+    return null;
   }
+  // Future<Map<String, dynamic>?> getUserData() async {
+  //   User? user = _auth.currentUser;
+  //   if (user == null) return null; // No user logged in
+
+  //   try {
+  //     DocumentSnapshot userDoc = await _firestore.collection("users").doc(user.uid).get();
+
+  //     if (userDoc.exists) {
+  //       return userDoc.data() as Map<String, dynamic>; // Return user data
+  //     } else {
+  //       return null; // No data found
+  //     }
+  //   } catch (e) {
+  //     print("Error fetching user data: $e");
+  //     return null;
+  //   }
+  // }
 
   /// Updates user profile data in Firestore
   Future<void> updateUserProfile({
