@@ -58,7 +58,6 @@ class HomeScreen extends StatelessWidget {
         carpoolRouteEnd: "ABC School",
         carpoolDate: Timestamp.now(),
         carpoolTime: Timestamp.now(),
-        carpoolIsRecurring: false,
         carpoolVehicleId: "xyz987",
         carpoolOwnerId: "user123",
         carpoolDriverId: "user456",

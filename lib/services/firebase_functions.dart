@@ -449,15 +449,8 @@ class FirebaseFunctions {
     required String carpoolName,
     required String carpoolRouteStart,
     required String carpoolRouteEnd,
-    Timestamp? carpoolDate,
+    required Timestamp carpoolDate,
     required Timestamp carpoolTime,
-    required bool carpoolIsRecurring,
-    String? carpoolRecurringType,
-    Timestamp? carpoolStartDate,
-    Timestamp? carpoolEndDate,
-    List<String>? carpoolRecurringDays,
-    List<int>? carpoolRecurringDates,
-    List<Timestamp>? carpoolCustomDates,
     required String carpoolVehicleId,
     required String carpoolOwnerId,
     required String carpoolDriverId,
@@ -484,13 +477,6 @@ class FirebaseFunctions {
         "carpoolRouteEnd": carpoolRouteEnd,
         "carpoolDate": carpoolDate,
         "carpoolTime": carpoolTime,
-        "carpoolIsRecurring": carpoolIsRecurring,
-        "carpoolRecurringType": carpoolIsRecurring ? carpoolRecurringType : null,
-        "carpoolStartDate": carpoolStartDate,
-        "carpoolEndDate": carpoolEndDate,
-        "carpoolRecurringDays": carpoolRecurringDays ?? [],
-        "carpoolRecurringDates": carpoolRecurringDates ?? [],
-        "carpoolCustomDates": carpoolCustomDates ?? [],
         "carpoolVehicleId": carpoolVehicleId,
         "carpoolOwnerId": carpoolOwnerId,
         "carpoolDriverId": carpoolDriverId,
@@ -500,7 +486,6 @@ class FirebaseFunctions {
         "carpoolStatus": "Available",
         "createdAt": FieldValue.serverTimestamp(), // Track creation time
       });
-
       print("✅ Carpool successfully created!");
     } catch (e) {
       print("🔥 Error creating carpool: $e");
