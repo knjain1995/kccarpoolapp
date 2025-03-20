@@ -411,15 +411,8 @@ class FirebaseFunctions {
 
   /// Updates an existing vehicle in Firestore
   Future<void> updateVehicle({
-    required String vehicleId, // ✅ Ensure we pass the correct vehicleId
-    required String vehicleMake,
-    required String vehicleModel,
-    required int vehicleYear,
-    required String vehicleColor,
-    required String vehicleLicenseNumber,
-    required String vehicleRegistrationNumber,
-    required String vehicleOwnerId,
-    String? vehicleImage, // ✅ Added vehicle image field
+    required String vehicleId,
+    required Map<String, dynamic> vehicleData, // Pass the whole vehicle map
   }) async {
     try {
       String? userId = FirebaseAuth.instance.currentUser?.uid;
@@ -430,16 +423,7 @@ class FirebaseFunctions {
           .doc(userId)
           .collection("vehicles")
           .doc(vehicleId)
-          .update({
-            "vehicleMake": vehicleMake,
-            "vehicleModel": vehicleModel,
-            "vehicleYear": vehicleYear,
-            "vehicleColor": vehicleColor,
-            "vehicleLicenseNumber": vehicleLicenseNumber,
-            "vehicleRegistrationNumber": vehicleRegistrationNumber,
-            "vehicleOwnerId": vehicleOwnerId,
-            "vehicleImage": vehicleImage ?? "",
-          }); // ✅ Ensures only existing documents are modified// ✅ Merge ensures existing data is updated
+          .update(vehicleData); // Update with the whole map
 
       print("Vehicle Updated Successfully!");
     } catch (e) {

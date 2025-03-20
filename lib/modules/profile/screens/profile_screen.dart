@@ -176,12 +176,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// Navigates to Manage Vehicles screen for adding/editing a vehicle
   void _manageVehicle({Map<String, dynamic>? vehicleData}) {
+  if (vehicleData != null && vehicleData.containsKey("id")) { // ✅ Ensure `id` exists when editing
+    print("🚀 Navigating to ManageVehiclesScreen with: $vehicleData"); // Debug
+  } else {
+    print("🚀 Navigating to ManageVehiclesScreen for adding a new vehicle."); // Debug
+  }
+
     Navigator.pushNamed(
       context,
       AppRoutes.manageVehicles,
-      arguments: vehicleData, // ✅ Pass vehicle data if editing
-    ).then((_) => _loadVehicles()); // ✅ Reload vehicles after returning
+      arguments: vehicleData, // ✅ Pass data if editing, otherwise null for adding
+    ).then((_) => _loadVehicles()); // ✅ Reload vehicle list after returning
   }
+  
 
   /// Logs the user out and navigates back to the login screen
   Future<void> _logout() async {
@@ -372,6 +379,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildVehicleList() {
     return Column(
       children: _vehicles.map((vehicle) {
+        print("Building vehicle list: $vehicle"); // 🔍 Debugging Output
         return Card(
           elevation: 2,
           margin: EdgeInsets.symmetric(vertical: 5),
@@ -384,7 +392,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(icon: Icon(Icons.edit), onPressed: () => _manageVehicle(vehicleData: vehicle)), // Edit Button
+                // IconButton(icon: Icon(Icons.edit), onPressed: () => _manageVehicle(vehicleData: vehicle)), // Edit Button
+              
+                IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () {
+                  if (vehicle.containsKey("id")) {
+                    _manageVehicle(vehicleData: vehicle);
+                  } else {
+                    print("Error: Vehicle data missing 'id' field!"); // 🔍 Debug
+                  }
+                },
+              ),
+
+
                 IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVehicle(vehicle['id'])), // Delete Button
               ],
             ),

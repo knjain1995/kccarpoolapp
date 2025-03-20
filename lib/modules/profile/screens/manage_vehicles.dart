@@ -37,35 +37,36 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeForm();
 
-    // Retrieve vehicle data if passed for editing
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    final Map<String, dynamic>? vehicleData =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-
-    if (vehicleData != null) {
-      setState(() {
-        _vehicleId = vehicleData['id']; // Store vehicle ID for updates
-        _makeController.text = vehicleData['vehicleMake'] ?? "";
-        _modelController.text = vehicleData['vehicleModel'] ?? "";
-        _yearController.text = vehicleData['vehicleYear']?.toString() ?? "";
-        _colorController.text = vehicleData['vehicleColor'] ?? "";
-        _licenseNumberController.text = vehicleData['vehicleLicenseNumber'] ?? "";
-        _registrationNumberController.text = vehicleData['vehicleRegistrationNumber'] ?? "";
-        _seatingCapacityController.text = vehicleData['seatingCapacity']?.toString() ?? "";
-
-        // ✅ Assign file paths for existing uploads
-        _vehicleImage = vehicleData['vehicleImage']; // Local path for vehicle image
-        _registrationDocument = vehicleData['registrationDocument']; // Local path for registration document
-      });
-    }
-  });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final Object? args = ModalRoute.of(context)?.settings.arguments;
+      
+      if (args is Map<String, dynamic> && args.containsKey("id")) { // ✅ Ensure arguments exist
+        print("🚀 Received vehicleData: $args"); // Debugging Output
+        
+        setState(() {
+          _vehicleId = args["id"]; // ✅ Store vehicle ID
+          _isEditing = true; // ✅ Enable editing mode
+          _makeController.text = args["vehicleMake"] ?? "";
+          _modelController.text = args["vehicleModel"] ?? "";
+          _yearController.text = args["vehicleYear"]?.toString() ?? "";
+          _colorController.text = args["vehicleColor"] ?? "";
+          _licenseNumberController.text = args["vehicleLicenseNumber"] ?? "";
+          _registrationNumberController.text = args["vehicleRegistrationNumber"] ?? "";
+          _seatingCapacityController.text = args["seatingCapacity"]?.toString() ?? "";
+          _vehicleImage = args["vehicleImage"];
+          _registrationDocument = args["registrationDocument"];
+        });
+      } else {
+        print("🚨 vehicleData is NULL or missing 'id' field! Editing disabled."); // Debug
+      }
+    });
   }
 
   /// If editing, load vehicle data into form fields
   void _initializeForm() {
     if (widget.vehicleData != null && widget.vehicleData!.containsKey("id")) {
+      print("Setting _isEditing to true, vehicleId: ${widget.vehicleData!["id"]}");
       setState(() {
         _isEditing = true;
         _vehicleId = widget.vehicleData!["id"]; // ✅ Ensure _vehicleId is assigned
@@ -126,17 +127,10 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
 
     if (_isEditing) {
       // ✅ Ensure we pass the existing vehicleId for an update
-     await _firebaseFunctions.updateVehicle(
-      vehicleId: _vehicleId!, // ✅ Pass vehicle ID
-      vehicleMake: _makeController.text.trim(),
-      vehicleModel: _modelController.text.trim(),
-      vehicleYear: int.parse(_yearController.text.trim()),
-      vehicleColor: _colorController.text.trim(),
-      vehicleLicenseNumber: _licenseNumberController.text.trim(),
-      vehicleRegistrationNumber: _registrationNumberController.text.trim(),
-      vehicleOwnerId: FirebaseAuth.instance.currentUser!.uid, // ✅ Store owner's ID
-      vehicleImage: _vehicleImage, // ✅ Handle optional image update
-    );
+      await _firebaseFunctions.updateVehicle(
+        vehicleId: _vehicleId!,
+        vehicleData: vehicleData,
+      );
     } else {
       // ✅ Add new vehicle
       await _firebaseFunctions.addVehicle(vehicleData);
