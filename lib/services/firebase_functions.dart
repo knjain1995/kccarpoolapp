@@ -409,16 +409,41 @@ class FirebaseFunctions {
     }
   }
 
-  /// 🔹 **Updates an existing vehicle in Firestore**
-  Future<void> updateVehicle(String vehicleId, Map<String, dynamic> vehicleData) async {
-    User? user = _auth.currentUser;
-    if (user == null) throw Exception("No authenticated user found.");
-
+  /// Updates an existing vehicle in Firestore
+  Future<void> updateVehicle({
+    required String vehicleId, // ✅ Ensure we pass the correct vehicleId
+    required String vehicleMake,
+    required String vehicleModel,
+    required int vehicleYear,
+    required String vehicleColor,
+    required String vehicleLicenseNumber,
+    required String vehicleRegistrationNumber,
+    required String vehicleOwnerId,
+    String? vehicleImage, // ✅ Added vehicle image field
+  }) async {
     try {
-      await _firestore.collection("users").doc(user.uid).collection("vehicles").doc(vehicleId).update(vehicleData);
-      print("✅ Vehicle updated successfully.");
+      String? userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) throw Exception("User not logged in");
+
+      await FirebaseFirestore.instance
+          .collection("users")
+          .doc(userId)
+          .collection("vehicles")
+          .doc(vehicleId)
+          .update({
+            "vehicleMake": vehicleMake,
+            "vehicleModel": vehicleModel,
+            "vehicleYear": vehicleYear,
+            "vehicleColor": vehicleColor,
+            "vehicleLicenseNumber": vehicleLicenseNumber,
+            "vehicleRegistrationNumber": vehicleRegistrationNumber,
+            "vehicleOwnerId": vehicleOwnerId,
+            "vehicleImage": vehicleImage ?? "",
+          }); // ✅ Ensures only existing documents are modified// ✅ Merge ensures existing data is updated
+
+      print("Vehicle Updated Successfully!");
     } catch (e) {
-      print("❌ Error updating vehicle: $e");
+      print("Error updating vehicle: $e");
       throw Exception("Failed to update vehicle.");
     }
   }

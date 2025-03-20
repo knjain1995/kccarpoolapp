@@ -1,5 +1,6 @@
 // Filename: manage_vehicles.dart  Location: lib/modules/profile/screens/
 import 'dart:io'; // Required for handling local file storage
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Firebase interaction class
 import 'package:file_picker/file_picker.dart'; // Used for selecting local files
@@ -64,10 +65,10 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
 
   /// If editing, load vehicle data into form fields
   void _initializeForm() {
-    if (widget.vehicleData != null) {
+    if (widget.vehicleData != null && widget.vehicleData!.containsKey("id")) {
       setState(() {
         _isEditing = true;
-        _vehicleId = widget.vehicleData!["id"];
+        _vehicleId = widget.vehicleData!["id"]; // ✅ Ensure _vehicleId is assigned
         _makeController.text = widget.vehicleData!["vehicleMake"];
         _modelController.text = widget.vehicleData!["vehicleModel"];
         _yearController.text = widget.vehicleData!["vehicleYear"].toString();
@@ -124,10 +125,20 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
     };
 
     if (_isEditing) {
-      // Update existing vehicle
-      await _firebaseFunctions.updateVehicle(_vehicleId!, vehicleData);
+      // ✅ Ensure we pass the existing vehicleId for an update
+     await _firebaseFunctions.updateVehicle(
+      vehicleId: _vehicleId!, // ✅ Pass vehicle ID
+      vehicleMake: _makeController.text.trim(),
+      vehicleModel: _modelController.text.trim(),
+      vehicleYear: int.parse(_yearController.text.trim()),
+      vehicleColor: _colorController.text.trim(),
+      vehicleLicenseNumber: _licenseNumberController.text.trim(),
+      vehicleRegistrationNumber: _registrationNumberController.text.trim(),
+      vehicleOwnerId: FirebaseAuth.instance.currentUser!.uid, // ✅ Store owner's ID
+      vehicleImage: _vehicleImage, // ✅ Handle optional image update
+    );
     } else {
-      // Add new vehicle
+      // ✅ Add new vehicle
       await _firebaseFunctions.addVehicle(vehicleData);
     }
 
@@ -159,6 +170,30 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
           ),
         ) ??
         false;
+  }
+
+  /// Builds a text field
+  Widget _buildTextField(String label, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(labelText: label),
+        keyboardType: label.contains("Year") || label.contains("Capacity") ? TextInputType.number : TextInputType.text,
+      ),
+    );
+  }
+
+  /// Builds a file upload button
+  Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
+    return ListTile(
+      title: Text(label),
+      subtitle: filePath != null ? Text("Uploaded") : Text("Not uploaded"),
+      trailing: ElevatedButton(
+        onPressed: () => _pickFile(fileType),
+        child: Text(filePath != null ? "Replace" : "Upload"),
+      ),
+    );
   }
 
   @override
@@ -198,30 +233,6 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
             ElevatedButton(onPressed: _saveVehicle, child: Text(_isEditing ? "Update Vehicle" : "Save Vehicle")),
           ],
         ),
-      ),
-    );
-  }
-
-  /// Builds a text field
-  Widget _buildTextField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(labelText: label),
-        keyboardType: label.contains("Year") || label.contains("Capacity") ? TextInputType.number : TextInputType.text,
-      ),
-    );
-  }
-
-  /// Builds a file upload button
-  Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
-    return ListTile(
-      title: Text(label),
-      subtitle: filePath != null ? Text("Uploaded") : Text("Not uploaded"),
-      trailing: ElevatedButton(
-        onPressed: () => _pickFile(fileType),
-        child: Text(filePath != null ? "Replace" : "Upload"),
       ),
     );
   }
