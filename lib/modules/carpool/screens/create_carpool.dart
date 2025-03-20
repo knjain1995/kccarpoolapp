@@ -221,17 +221,47 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             //     ],
             //   ),
 
-            // Vehicle Selection
-            _buildDropdown("Select Vehicle", _selectedVehicle, _vehicles, "vehicleId", "vehicleMake"),
+            // // Vehicle Selection
+            // _buildDropdown("Select Vehicle", _selectedVehicle, _vehicles, "vehicleId", "vehicleMake"),
 
-            // Owner Selection
-            _buildDropdown("Carpool Owner", _selectedOwner, _adults, "id", "fullName"),
+            // // Owner Selection
+            // _buildDropdown("Carpool Owner", _selectedOwner, _adults, "id", "fullName"),
 
-            // Driver Selection
-            _buildDropdown("Driver", _selectedDriver, _adults, "id", "fullName"),
+            // // Driver Selection
+            // _buildDropdown("Driver", _selectedDriver, _adults, "id", "fullName"),
 
-            // Carpool Capacity
-            _buildTextField("Capacity", _capacityController, keyboardType: TextInputType.number),
+            // // Carpool Capacity
+            // _buildTextField("Capacity", _capacityController, keyboardType: TextInputType.number),
+
+            // Vehicle Dropdown
+            _buildDropdown(
+              "Select Vehicle",
+              _selectedVehicle,
+              _vehicles,
+              "vehicleId",
+              "vehicleMake",
+              (value) => _selectedVehicle = value, // 🔹 Updates _selectedVehicle
+            ),
+
+            // Owner Dropdown
+            _buildDropdown(
+              "Carpool Owner",
+              _selectedOwner,
+              _adults,
+              "id",
+              "fullName",
+              (value) => _selectedOwner = value, // 🔹 Updates _selectedOwner
+            ),
+
+            // Driver Dropdown
+            _buildDropdown(
+              "Driver",
+              _selectedDriver,
+              _adults,
+              "id",
+              "fullName",
+              (value) => _selectedDriver = value, // 🔹 Updates _selectedDriver
+            ),
 
             // Return Trip Toggle
             SwitchListTile(
@@ -251,6 +281,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             // ElevatedButton(onPressed: _createCarpool, child: Text("Create Carpool")),
             ElevatedButton(
               onPressed: () async {
+                print(_validateCarpoolInputs());
                 if (_validateCarpoolInputs()) {
                   await _firebaseFunctions.createCarpool(
                     carpoolName: _carpoolNameController.text.trim(),
@@ -315,14 +346,39 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   }
 
   /// Dropdown builder
-  Widget _buildDropdown(String label, String? selected, List<Map<String, dynamic>> items, String idField, String displayField) {
+  // Widget _buildDropdown(String label, String? selected, List<Map<String, dynamic>> items, String idField, String displayField) {
+  //   return DropdownButtonFormField(
+  //     value: selected,
+  //     items: items.map((item) => DropdownMenuItem(value: item[idField], child: Text(item[displayField]))).toList(),
+  //     onChanged: (value) => setState(() => selected = value as String?),
+  //     decoration: InputDecoration(labelText: label),
+  //   );
+  // }
+  Widget _buildDropdown(
+    String label,
+    String? selectedValue,
+    List<Map<String, dynamic>> items,
+    String idField,
+    String displayField,
+    Function(String?) onChangedCallback // 🔹 Pass callback to update state
+    ) {
     return DropdownButtonFormField(
-      value: selected,
-      items: items.map((item) => DropdownMenuItem(value: item[idField], child: Text(item[displayField]))).toList(),
-      onChanged: (value) => setState(() => selected = value as String?),
+      value: selectedValue,
+      items: items.map((item) {
+        return DropdownMenuItem(
+          value: item[idField],
+          child: Text(item[displayField]),
+        );
+      }).toList(),
+      onChanged: (value) {
+        setState(() {
+          onChangedCallback(value as String?); // 🔹 Ensure state updates properly
+        });
+      },
       decoration: InputDecoration(labelText: label),
     );
   }
+
 
   /// Builds the UI for Recurring Carpool options
   Widget _buildRecurringOptions() {
@@ -461,7 +517,26 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     }
   }
 
-    bool _validateCarpoolInputs() {
+  bool _validateCarpoolInputs() {
+    print("Validating Carpool Inputs...");
+
+    print("Carpool Name: ${_carpoolNameController.text}");
+    print("Route Start: ${_routeStartController.text}");
+    print("Route End: ${_routeEndController.text}");
+    print("Is Recurring: $_isRecurring");
+
+    if (_isRecurring) {
+      print("Recurring Start Date: $_recurringStartDate");
+      print("Recurring End Date: $_recurringEndDate");
+    } else {
+      print("Selected Date: $_selectedDate");
+    }
+
+    print("Selected Time: $_selectedTime");
+    print("Selected Vehicle: $_selectedVehicle");
+    print("Selected Driver: $_selectedDriver");
+    print("Selected Owner: $_selectedOwner");
+
     if (_carpoolNameController.text.isEmpty ||
         _routeStartController.text.isEmpty ||
         _routeEndController.text.isEmpty ||
@@ -472,29 +547,95 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
         _selectedVehicle == null ||
         _selectedDriver == null ||
         _selectedOwner == null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please fill all required fields!")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Please fill all required fields!")));
+      print("Validation failed: Missing required fields.");
       return false;
     }
 
     if (_isRecurring) {
-      if (_recurringType == "Daily" && _selectedDays.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select weekdays or weekends for daily recurrence!")));
-        return false;
+      print("Recurring Type: $_recurringType");
+
+      if (_recurringType == "Daily") {
+        print("Selected Days (Daily): $_selectedDays");
+        if (_selectedDays.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content:
+                  Text("Please select weekdays or weekends for daily recurrence!")));
+          print("Validation failed: No days selected for daily recurrence.");
+          return false;
+        }
       }
-      if (_recurringType == "Weekly" && _selectedDays.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select at least one day for weekly recurrence!")));
-        return false;
+      if (_recurringType == "Weekly") {
+        print("Selected Days (Weekly): $_selectedDays");
+        if (_selectedDays.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text("Please select at least one day for weekly recurrence!")));
+          print("Validation failed: No days selected for weekly recurrence.");
+          return false;
+        }
       }
-      if (_recurringType == "Monthly" && _selectedDates.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select at least one date for monthly recurrence!")));
-        return false;
+      if (_recurringType == "Monthly") {
+        print("Selected Dates (Monthly): $_selectedDates");
+        if (_selectedDates.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content:
+                  Text("Please select at least one date for monthly recurrence!")));
+          print("Validation failed: No dates selected for monthly recurrence.");
+          return false;
+        }
       }
-      if (_recurringType == "Custom" && _customDates.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select at least one custom date!")));
-        return false;
+      if (_recurringType == "Custom") {
+        print("Custom Dates: $_customDates");
+        if (_customDates.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Please select at least one custom date!")));
+          print("Validation failed: No custom dates selected.");
+          return false;
+        }
       }
     }
 
+    print("Validation successful.");
     return true;
   }
+
 }
+
+//     bool _validateCarpoolInputs() {
+//     if (_carpoolNameController.text.isEmpty ||
+//         _routeStartController.text.isEmpty ||
+//         _routeEndController.text.isEmpty ||
+//         (_isRecurring
+//             ? _recurringStartDate == null || _recurringEndDate == null
+//             : _selectedDate == null) ||
+//         _selectedTime == null ||
+//         _selectedVehicle == null ||
+//         _selectedDriver == null ||
+//         _selectedOwner == null) {
+//       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please fill all required fields!")));
+//       return false;
+//     }
+
+//     if (_isRecurring) {
+//       if (_recurringType == "Daily" && _selectedDays.isEmpty) {
+//         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select weekdays or weekends for daily recurrence!")));
+//         return false;
+//       }
+//       if (_recurringType == "Weekly" && _selectedDays.isEmpty) {
+//         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select at least one day for weekly recurrence!")));
+//         return false;
+//       }
+//       if (_recurringType == "Monthly" && _selectedDates.isEmpty) {
+//         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select at least one date for monthly recurrence!")));
+//         return false;
+//       }
+//       if (_recurringType == "Custom" && _customDates.isEmpty) {
+//         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please select at least one custom date!")));
+//         return false;
+//       }
+//     }
+
+//     return true;
+//   }
+// }
