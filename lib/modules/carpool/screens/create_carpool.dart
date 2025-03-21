@@ -229,13 +229,14 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
   /// Dropdown builder
   Widget _buildDropdown(
-    String label,
-    String? selectedValue,
-    List<Map<String, dynamic>> items,
-    String idField,
-    String displayField,
-    Function(String?) onChangedCallback
-  ) {
+  String label,
+  String? selectedValue,
+  List<Map<String, dynamic>> items,
+  String idField,
+  String displayField,
+  Function(String?) onChangedCallback, {
+  bool showAvailabilityIcon = false, // ✅ NEW optional flag
+  }) {
     return DropdownButtonFormField(
       value: selectedValue,
       items: items.map((item) {
@@ -244,11 +245,19 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
         return DropdownMenuItem(
           value: item[idField],
           enabled: !isDisabled, // 🔹 Disable item if unavailable
-          child: Text(
-            item[displayField] + (isDisabled ? " (Unavailable)" : ""),
-            style: TextStyle(
-              color: isDisabled ? Colors.grey : null,
-            ),
+          child: Row(
+            children: [
+              if (showAvailabilityIcon && isDisabled)
+                Icon(Icons.block, color: Colors.redAccent, size: 16),
+              if (showAvailabilityIcon && isDisabled) SizedBox(width: 6),
+              Text(
+                item[displayField] + (showAvailabilityIcon && isDisabled ? " (Unavailable)" : ""),
+                style: TextStyle(
+                  color: isDisabled ? Colors.grey : null,
+                  fontStyle: showAvailabilityIcon && isDisabled ? FontStyle.italic : FontStyle.normal,
+                ),
+              ),
+            ],
           ),
         );
       }).toList(),
@@ -313,7 +322,8 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               _vehicles,
               "id",
               "vehicleMake",
-              (value) => _selectedVehicle = value, // 🔹 Updates _selectedVehicle
+              (value) => _selectedVehicle = value,
+              showAvailabilityIcon: true, // ✅ Enable icon only for vehicles
             ),
 
             // Carpool Capacity
