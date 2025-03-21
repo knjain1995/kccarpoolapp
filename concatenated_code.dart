@@ -1461,35 +1461,36 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeForm();
 
-    // Retrieve vehicle data if passed for editing
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    final Map<String, dynamic>? vehicleData =
-        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-
-    if (vehicleData != null) {
-      setState(() {
-        _vehicleId = vehicleData['id']; // Store vehicle ID for updates
-        _makeController.text = vehicleData['vehicleMake'] ?? "";
-        _modelController.text = vehicleData['vehicleModel'] ?? "";
-        _yearController.text = vehicleData['vehicleYear']?.toString() ?? "";
-        _colorController.text = vehicleData['vehicleColor'] ?? "";
-        _licenseNumberController.text = vehicleData['vehicleLicenseNumber'] ?? "";
-        _registrationNumberController.text = vehicleData['vehicleRegistrationNumber'] ?? "";
-        _seatingCapacityController.text = vehicleData['seatingCapacity']?.toString() ?? "";
-
-        // ✅ Assign file paths for existing uploads
-        _vehicleImage = vehicleData['vehicleImage']; // Local path for vehicle image
-        _registrationDocument = vehicleData['registrationDocument']; // Local path for registration document
-      });
-    }
-  });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final Object? args = ModalRoute.of(context)?.settings.arguments;
+      
+      if (args is Map<String, dynamic> && args.containsKey("id")) { // ✅ Ensure arguments exist
+        print("🚀 Received vehicleData: $args"); // Debugging Output
+        
+        setState(() {
+          _vehicleId = args["id"]; // ✅ Store vehicle ID
+          _isEditing = true; // ✅ Enable editing mode
+          _makeController.text = args["vehicleMake"] ?? "";
+          _modelController.text = args["vehicleModel"] ?? "";
+          _yearController.text = args["vehicleYear"]?.toString() ?? "";
+          _colorController.text = args["vehicleColor"] ?? "";
+          _licenseNumberController.text = args["vehicleLicenseNumber"] ?? "";
+          _registrationNumberController.text = args["vehicleRegistrationNumber"] ?? "";
+          _seatingCapacityController.text = args["seatingCapacity"]?.toString() ?? "";
+          _vehicleImage = args["vehicleImage"];
+          _registrationDocument = args["registrationDocument"];
+        });
+      } else {
+        print("🚨 vehicleData is NULL or missing 'id' field! Editing disabled."); // Debug
+      }
+    });
   }
 
   /// If editing, load vehicle data into form fields
   void _initializeForm() {
     if (widget.vehicleData != null && widget.vehicleData!.containsKey("id")) {
+      print("Setting _isEditing to true, vehicleId: ${widget.vehicleData!["id"]}");
       setState(() {
         _isEditing = true;
         _vehicleId = widget.vehicleData!["id"]; // ✅ Ensure _vehicleId is assigned
@@ -1839,12 +1840,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   /// Navigates to Manage Vehicles screen for adding/editing a vehicle
   void _manageVehicle({Map<String, dynamic>? vehicleData}) {
+  if (vehicleData != null && vehicleData.containsKey("id")) { // ✅ Ensure `id` exists when editing
+    print("🚀 Navigating to ManageVehiclesScreen with: $vehicleData"); // Debug
+  } else {
+    print("🚀 Navigating to ManageVehiclesScreen for adding a new vehicle."); // Debug
+  }
+
     Navigator.pushNamed(
       context,
       AppRoutes.manageVehicles,
-      arguments: vehicleData, // ✅ Pass vehicle data if editing
-    ).then((_) => _loadVehicles()); // ✅ Reload vehicles after returning
+      arguments: vehicleData, // ✅ Pass data if editing, otherwise null for adding
+    ).then((_) => _loadVehicles()); // ✅ Reload vehicle list after returning
   }
+  
 
   /// Logs the user out and navigates back to the login screen
   Future<void> _logout() async {
@@ -2035,6 +2043,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildVehicleList() {
     return Column(
       children: _vehicles.map((vehicle) {
+        print("Building vehicle list: $vehicle"); // 🔍 Debugging Output
         return Card(
           elevation: 2,
           margin: EdgeInsets.symmetric(vertical: 5),
@@ -2047,7 +2056,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(icon: Icon(Icons.edit), onPressed: () => _manageVehicle(vehicleData: vehicle)), // Edit Button
+                // IconButton(icon: Icon(Icons.edit), onPressed: () => _manageVehicle(vehicleData: vehicle)), // Edit Button
+              
+                IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () {
+                  if (vehicle.containsKey("id")) {
+                    _manageVehicle(vehicleData: vehicle);
+                  } else {
+                    print("Error: Vehicle data missing 'id' field!"); // 🔍 Debug
+                  }
+                },
+              ),
+
+
                 IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVehicle(vehicle['id'])), // Delete Button
               ],
             ),

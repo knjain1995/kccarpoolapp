@@ -580,4 +580,37 @@ class FirebaseFunctions {
       throw Exception("Failed to delete carpool.");
     }
   }
+
+  /// Checks if a vehicle is already booked for a given date and time
+  Future<bool> isVehicleAvailable({
+    required String vehicleId,
+    required Timestamp carpoolDate,
+    required Timestamp carpoolTime,
+  }) async {
+    try {
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(userId)
+          .collection("carpools")
+          .where("carpoolVehicleId", isEqualTo: vehicleId)
+          .where("carpoolDate", isEqualTo: carpoolDate)
+          .get();
+
+      for (var doc in snapshot.docs) {
+        Timestamp existingTime = doc["carpoolTime"];
+        // We assume exact match is a conflict. Later we can add buffer/overlap logic.
+        if (existingTime.toDate().hour == carpoolTime.toDate().hour &&
+            existingTime.toDate().minute == carpoolTime.toDate().minute) {
+          return false; // Conflict found
+        }
+      }
+
+      return true; // No conflicts found
+    } catch (e) {
+      print("Error checking vehicle availability: $e");
+      throw Exception("Failed to check vehicle availability.");
+    }
+  }
 }
