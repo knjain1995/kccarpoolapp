@@ -30,6 +30,7 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
   // Image paths for vehicle & registration document
   String? _vehicleImage;
   String? _registrationDocument;
+  String? _licensePlateImage; // ✅ License plate image path
   String? _vehicleId; // Used when editing
 
   bool _isEditing = false; // Tracks if the form is for editing
@@ -56,6 +57,7 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
           _seatingCapacityController.text = args["seatingCapacity"]?.toString() ?? "";
           _vehicleImage = args["vehicleImage"];
           _registrationDocument = args["registrationDocument"];
+          _licensePlateImage = args['licensePlateImage'];
         });
       } else {
         print("🚨 vehicleData is NULL or missing 'id' field! Editing disabled."); // Debug
@@ -79,6 +81,7 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
         _seatingCapacityController.text = widget.vehicleData!["seatingCapacity"].toString();
         _vehicleImage = widget.vehicleData!["vehicleImage"];
         _registrationDocument = widget.vehicleData!["registrationDocument"];
+        _licensePlateImage = widget.vehicleData!["licensePlateImage"];
       });
     }
   }
@@ -90,6 +93,7 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
       setState(() {
         if (fileType == "vehicleImage") _vehicleImage = savedPath;
         if (fileType == "registrationDocument") _registrationDocument = savedPath;
+         if (fileType == "licensePlateImage") _licensePlateImage = savedPath; // ✅ New field
       });
     }
   }
@@ -104,7 +108,8 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
         _registrationNumberController.text.isEmpty ||
         _seatingCapacityController.text.isEmpty ||
         _vehicleImage == null ||
-        _registrationDocument == null) {
+        _registrationDocument == null ||
+        _licensePlateImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please fill all required fields!")));
       return;
     }
@@ -123,6 +128,7 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
       "seatingCapacity": seatingCapacity,
       "vehicleImage": _vehicleImage!,
       "registrationDocument": _registrationDocument!,
+      "licensePlateImage": _licensePlateImage!, // ✅ Add this line
     };
 
     if (_isEditing) {
@@ -221,6 +227,8 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
             /// Registration Document Upload
             _buildFileUploadSection("Registration Document", _registrationDocument, "registrationDocument"),
 
+            // License Plate Image Upload (Mandatory)
+            _buildFileUploadSection("License Plate Image", _licensePlateImage, "licensePlateImage"),
             SizedBox(height: 20),
 
             /// Save Button
