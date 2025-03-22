@@ -501,6 +501,13 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
 // --------------------------------------------------
 
+// 📌 Filename: carpool_list_screen.dart
+// 📂 Location: modules\carpool\screens
+
+
+
+// --------------------------------------------------
+
 // 📌 Filename: create_carpool.dart
 // 📂 Location: modules\carpool\screens
 
@@ -555,6 +562,29 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     var familyMembers = await _firebaseFunctions.getFamilyMembers();
     var vehicleData = await _firebaseFunctions.getVehicles();
 
+     // 🔄 If date/time is selected, check availability for each vehicle
+    if (_selectedDate != null && _selectedTime != null) {
+      for (var vehicle in vehicleData) {
+        bool available = await _firebaseFunctions.isVehicleAvailable(
+          vehicleId: vehicle['id'],
+          carpoolDate: Timestamp.fromDate(_selectedDate!),
+          carpoolTime: Timestamp.fromDate(DateTime(
+            _selectedDate!.year,
+            _selectedDate!.month,
+            _selectedDate!.day,
+            _selectedTime!.hour,
+            _selectedTime!.minute,
+          )),
+        );
+        vehicle['isAvailable'] = available; // 🔹 Tag vehicle as available/unavailable
+      }
+    } else {
+      // If no time/date selected yet, assume all available
+      for (var vehicle in vehicleData) {
+        vehicle['isAvailable'] = true;
+      }
+    }
+
     setState(() {
       _selectedOwner = userData?["id"]; // Default owner should be account owner's ID
 
@@ -593,6 +623,9 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       setState(() {
         _selectedDate = pickedDate;
       });
+
+      // 🔄 Re-fetch vehicles to update their availability
+      await _fetchUserData();
     }
   }
 
@@ -607,6 +640,9 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       setState(() {
         _selectedTime = pickedTime;
       });
+
+      // 🔄 Re-fetch vehicles to update their availability
+      await _fetchUserData();
     }
   }
 
@@ -626,9 +662,27 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   }
 
   /// Handles form submission for creating a carpool
-  void _createCarpool() {
+  void _createCarpool() async {
     if (!_validateCarpoolInputs()) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please fill all required fields!")));
+      return;
+    }
+
+    // ✅ Safety net check before creation (even if dropdown disables vehicle)
+    bool stillAvailable = await _firebaseFunctions.isVehicleAvailable(
+      vehicleId: _selectedVehicle!,
+      carpoolDate: Timestamp.fromDate(_selectedDate!),
+      carpoolTime: Timestamp.fromDate(DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      )),
+    );
+
+    if (!stillAvailable) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Selected vehicle is no longer available.")));
       return;
     }
 
@@ -693,19 +747,36 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   List<Map<String, dynamic>> items,
   String idField,
   String displayField,
-  Function(String?) onChangedCallback // 🔹 Pass callback to update state
-  ) {
+  Function(String?) onChangedCallback, {
+  bool showAvailabilityIcon = false, // ✅ NEW optional flag
+  }) {
     return DropdownButtonFormField(
       value: selectedValue,
       items: items.map((item) {
+        bool isDisabled = item['isAvailable'] == false;
+
         return DropdownMenuItem(
           value: item[idField],
-          child: Text(item[displayField]),
+          enabled: !isDisabled, // 🔹 Disable item if unavailable
+          child: Row(
+            children: [
+              if (showAvailabilityIcon && isDisabled)
+                Icon(Icons.block, color: Colors.redAccent, size: 16),
+              if (showAvailabilityIcon && isDisabled) SizedBox(width: 6),
+              Text(
+                item[displayField] + (showAvailabilityIcon && isDisabled ? " (Unavailable)" : ""),
+                style: TextStyle(
+                  color: isDisabled ? Colors.grey : null,
+                  fontStyle: showAvailabilityIcon && isDisabled ? FontStyle.italic : FontStyle.normal,
+                ),
+              ),
+            ],
+          ),
         );
       }).toList(),
       onChanged: (value) {
         setState(() {
-          onChangedCallback(value as String?); // 🔹 Ensure state updates properly
+          onChangedCallback(value as String?);
         });
       },
       decoration: InputDecoration(labelText: label),
@@ -734,20 +805,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             // _buildDropdown("Carpool Owner", _selectedOwner, _adults, "id", "fullName"),
 
             // // Driver Selection
-            // _buildDropdown("Driver", _selectedDriver, _adults, "id", "fullName"),
-
-            // // Carpool Capacity
-            // _buildTextField("Capacity", _capacityController, keyboardType: TextInputType.number),
-
-            // Vehicle Dropdown
-            _buildDropdown(
-              "Select Vehicle",
-              _selectedVehicle,
-              _vehicles,
-              "id",
-              "vehicleMake",
-              (value) => _selectedVehicle = value, // 🔹 Updates _selectedVehicle
-            ),
+            // _buildDropdown("Driver", _selectedDriver, _adults, "id", "fullName")
 
             // Owner Dropdown
             _buildDropdown(
@@ -768,6 +826,21 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               "fullName",
               (value) => _selectedDriver = value, // 🔹 Updates _selectedDriver
             ),
+
+            
+            // Vehicle Dropdown
+            _buildDropdown(
+              "Select Vehicle",
+              _selectedVehicle,
+              _vehicles,
+              "id",
+              "vehicleMake",
+              (value) => _selectedVehicle = value,
+              showAvailabilityIcon: true, // ✅ Enable icon only for vehicles
+            ),
+
+            // Carpool Capacity
+            _buildTextField("Capacity", _capacityController, keyboardType: TextInputType.number),
 
             // Return Trip Toggle
             SwitchListTile(
@@ -1454,6 +1527,7 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
   // Image paths for vehicle & registration document
   String? _vehicleImage;
   String? _registrationDocument;
+  String? _licensePlateImage; // ✅ License plate image path
   String? _vehicleId; // Used when editing
 
   bool _isEditing = false; // Tracks if the form is for editing
@@ -1480,6 +1554,7 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
           _seatingCapacityController.text = args["seatingCapacity"]?.toString() ?? "";
           _vehicleImage = args["vehicleImage"];
           _registrationDocument = args["registrationDocument"];
+          _licensePlateImage = args['licensePlateImage'];
         });
       } else {
         print("🚨 vehicleData is NULL or missing 'id' field! Editing disabled."); // Debug
@@ -1503,6 +1578,7 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
         _seatingCapacityController.text = widget.vehicleData!["seatingCapacity"].toString();
         _vehicleImage = widget.vehicleData!["vehicleImage"];
         _registrationDocument = widget.vehicleData!["registrationDocument"];
+        _licensePlateImage = widget.vehicleData!["licensePlateImage"];
       });
     }
   }
@@ -1514,6 +1590,7 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
       setState(() {
         if (fileType == "vehicleImage") _vehicleImage = savedPath;
         if (fileType == "registrationDocument") _registrationDocument = savedPath;
+         if (fileType == "licensePlateImage") _licensePlateImage = savedPath; // ✅ New field
       });
     }
   }
@@ -1528,7 +1605,8 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
         _registrationNumberController.text.isEmpty ||
         _seatingCapacityController.text.isEmpty ||
         _vehicleImage == null ||
-        _registrationDocument == null) {
+        _registrationDocument == null ||
+        _licensePlateImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please fill all required fields!")));
       return;
     }
@@ -1547,6 +1625,7 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
       "seatingCapacity": seatingCapacity,
       "vehicleImage": _vehicleImage!,
       "registrationDocument": _registrationDocument!,
+      "licensePlateImage": _licensePlateImage!, // ✅ Add this line
     };
 
     if (_isEditing) {
@@ -1645,6 +1724,8 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
             /// Registration Document Upload
             _buildFileUploadSection("Registration Document", _registrationDocument, "registrationDocument"),
 
+            // License Plate Image Upload (Mandatory)
+            _buildFileUploadSection("License Plate Image", _licensePlateImage, "licensePlateImage"),
             SizedBox(height: 20),
 
             /// Save Button
@@ -2710,6 +2791,39 @@ class FirebaseFunctions {
     } catch (e) {
       print("🔥 Error deleting carpool: $e");
       throw Exception("Failed to delete carpool.");
+    }
+  }
+
+  /// Checks if a vehicle is already booked for a given date and time
+  Future<bool> isVehicleAvailable({
+    required String vehicleId,
+    required Timestamp carpoolDate,
+    required Timestamp carpoolTime,
+  }) async {
+    try {
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(userId)
+          .collection("carpools")
+          .where("carpoolVehicleId", isEqualTo: vehicleId)
+          .where("carpoolDate", isEqualTo: carpoolDate)
+          .get();
+
+      for (var doc in snapshot.docs) {
+        Timestamp existingTime = doc["carpoolTime"];
+        // We assume exact match is a conflict. Later we can add buffer/overlap logic.
+        if (existingTime.toDate().hour == carpoolTime.toDate().hour &&
+            existingTime.toDate().minute == carpoolTime.toDate().minute) {
+          return false; // Conflict found
+        }
+      }
+
+      return true; // No conflicts found
+    } catch (e) {
+      print("Error checking vehicle availability: $e");
+      throw Exception("Failed to check vehicle availability.");
     }
   }
 }
