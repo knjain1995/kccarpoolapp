@@ -50,6 +50,8 @@ import 'package:kccarpoolapp/modules/onboarding/onboarding_screen.dart';
 import 'package:kccarpoolapp/modules/profile/screens/manage_family.dart';
 import 'package:kccarpoolapp/modules/profile/screens/manage_vehicles.dart';
 import 'package:kccarpoolapp/modules/profile/screens/profile_screen.dart';
+import 'package:kccarpoolapp/modules/carpool/screens/carpool_list_screen.dart';
+
 
 class AppRoutes {
   static const String onboarding = '/onboarding';
@@ -61,6 +63,7 @@ class AppRoutes {
   static const String manageFamily = '/manage-family';
   static const String manageVehicles = 'manage-vehicles';
   static const String createCarpool = '/createCarpool';
+  static const String carpoolList = '/carpoolList';
 
 
   static Map<String, WidgetBuilder> routes = {
@@ -73,6 +76,7 @@ class AppRoutes {
     manageFamily: (context) => ManageFamilyScreen(),
     manageVehicles: (context) => ManageVehiclesScreen(),
     createCarpool: (context) => CreateCarpoolScreen(),
+    carpoolList: (context) => CarpoolListScreen(),
   };
 }
 
@@ -504,6 +508,197 @@ class _VerificationScreenState extends State<VerificationScreen> {
 // 📌 Filename: carpool_list_screen.dart
 // 📂 Location: modules\carpool\screens
 
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:kccarpoolapp/services/firebase_functions.dart';
+import 'package:intl/intl.dart';
+
+class CarpoolListScreen extends StatefulWidget {
+  @override
+  _CarpoolListScreenState createState() => _CarpoolListScreenState();
+}
+
+class _CarpoolListScreenState extends State<CarpoolListScreen> {
+  final FirebaseFunctions _firebaseFunctions = FirebaseFunctions();
+  List<Map<String, dynamic>> _carpools = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCarpools(); // 🔹 Fetch user's carpools on screen load
+  }
+
+  /// Loads carpools created by the logged-in user
+  Future<void> _loadCarpools() async {
+    List<Map<String, dynamic>> rawCarpools = await _firebaseFunctions.getCarpools();
+
+    // 🔄 Fetch driver & vehicle info for each carpool
+    List<Map<String, dynamic>> enrichedCarpools = [];
+
+    for (var carpool in rawCarpools) {
+      // 🔸 Fetch Driver Info
+      var driverData = await _firebaseFunctions.getUserById(carpool['carpoolDriverId']);
+      carpool['driverName'] = driverData?['fullName'] ?? "Unknown";
+      carpool['driverPhoto'] = driverData?['profilePhoto'];
+
+      // 🔸 Fetch Vehicle Info
+      var vehicleData = await _firebaseFunctions.getVehicleById(carpool['carpoolVehicleId']);
+      carpool['vehicleMakeModel'] = vehicleData != null
+          ? "${vehicleData['vehicleMake']} ${vehicleData['vehicleModel']}"
+          : "Unknown Vehicle";
+      carpool['vehicleImage'] = vehicleData?['vehicleImage'];
+
+      enrichedCarpools.add(carpool);
+    }
+
+    setState(() {
+      _carpools = enrichedCarpools;
+    });
+  }
+
+  /// Deletes a carpool by ID
+  Future<void> _deleteCarpool(String carpoolId) async {
+    await _firebaseFunctions.deleteCarpool(carpoolId);
+    _loadCarpools(); // 🔁 Refresh list after deletion
+  }
+
+  /// 🔹 Builds each carpool card
+  Widget _buildCarpoolCard(Map<String, dynamic> carpool) {
+    DateTime carpoolDate = (carpool['carpoolDate'] as Timestamp).toDate();
+    DateTime carpoolTime = (carpool['carpoolTime'] as Timestamp).toDate();
+
+    String formattedDate = DateFormat('dd MMM yyyy').format(carpoolDate);
+    String formattedTime = DateFormat('hh:mm a').format(carpoolTime);
+
+    return Card(
+      elevation: 3,
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 🔹 Top Row: Carpool Name + Status
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(carpool['carpoolName'],
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade200,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(carpool['carpoolStatus']),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+
+            // 🔹 Route Info
+            Row(
+              children: [
+                Icon(Icons.location_on, size: 18, color: Colors.grey[700]),
+                SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    "${carpool['carpoolRouteStart']} → ${carpool['carpoolRouteEnd']}",
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+
+            // 🔹 Driver Info
+            Row(
+              children: [
+                carpool['driverPhoto'] != null
+                    ? CircleAvatar(
+                        backgroundImage: FileImage(File(carpool['driverPhoto'])),
+                        radius: 14,
+                      )
+                    : Icon(Icons.person, size: 20),
+                SizedBox(width: 6),
+                Text("Driver: ${carpool['driverName']}", style: TextStyle(fontSize: 14)),
+              ],
+            ),
+
+            // 🔹 Date & Time
+            Row(
+              children: [
+                Icon(Icons.calendar_today, size: 18, color: Colors.grey[700]),
+                SizedBox(width: 4),
+                Text("Date: $formattedDate,"),
+                SizedBox(width: 6),
+                Icon(Icons.access_time, size: 18, color: Colors.grey[700]),
+                SizedBox(width: 4),
+                Text("Time: $formattedTime"),
+              ],
+            ),
+
+            // 🔹 Vehicle Info + Available Seats + Action Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // 🔹 Vehicle info
+                Row(
+                  children: [
+                    carpool['vehicleImage'] != null
+                        ? Image.file(
+                            File(carpool['vehicleImage']),
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                          )
+                        : Icon(Icons.directions_car, size: 30, color: Colors.blue),
+                    SizedBox(width: 6),
+                    Text(carpool['vehicleMakeModel']),
+                  ],
+                ),
+
+                // 🔹 Seats + Actions
+                Row(
+                  children: [
+                    Text("Seats: ${carpool['carpoolCapacity']}/${carpool['carpoolCapacity']}"),
+                    SizedBox(width: 12),
+                    IconButton(
+                      icon: Icon(Icons.edit, color: Colors.orange),
+                      onPressed: () {
+                        // 🚧 Future: Navigate to edit screen
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _deleteCarpool(carpool['carpoolId']),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 🔹 Builds the full screen
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text("Your Carpools")),
+      body: _carpools.isEmpty
+          ? Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              itemCount: _carpools.length,
+              itemBuilder: (context, index) => _buildCarpoolCard(_carpools[index]),
+            ),
+    );
+  }
+}
 
 
 // --------------------------------------------------
@@ -922,28 +1117,36 @@ class HomeScreen extends StatelessWidget {
                 label: Text("Create Carpool"),
               ),
 
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pushNamed(context, AppRoutes.carpoolList);
+                },
+                icon: Icon(Icons.list),
+                label: Text("My Carpools"),
+              ),
+
               ElevatedButton(
-  onPressed: () async {
-    try {
-      await FirebaseFunctions().createCarpool(
-        carpoolName: "School Pickup",
-        carpoolRouteStart: "Home",
-        carpoolRouteEnd: "ABC School",
-        carpoolDate: Timestamp.now(),
-        carpoolTime: Timestamp.now(),
-        carpoolVehicleId: "xyz987",
-        carpoolOwnerId: "user123",
-        carpoolDriverId: "user456",
-        carpoolCapacity: 4,
-        carpoolReturnTrip: false,
-      );
-      print("Carpool added successfully!");
-    } catch (e) {
-      print("Error: $e");
-    }
-  },
-  child: Text("Test Create Carpool"),
-),
+                onPressed: () async {
+                  try {
+                    await FirebaseFunctions().createCarpool(
+                      carpoolName: "School Pickup",
+                      carpoolRouteStart: "Home",
+                      carpoolRouteEnd: "ABC School",
+                      carpoolDate: Timestamp.now(),
+                      carpoolTime: Timestamp.now(),
+                      carpoolVehicleId: "xyz987",
+                      carpoolOwnerId: "user123",
+                      carpoolDriverId: "user456",
+                      carpoolCapacity: 4,
+                      carpoolReturnTrip: false,
+                    );
+                    print("Carpool added successfully!");
+                  } catch (e) {
+                    print("Error: $e");
+                  }
+                },
+                child: Text("Test Create Carpool"),
+              ),
             ],
           ),
         ),
@@ -2824,6 +3027,47 @@ class FirebaseFunctions {
     } catch (e) {
       print("Error checking vehicle availability: $e");
       throw Exception("Failed to check vehicle availability.");
+    }
+  }
+
+  /// Fetches user details by userId (used to get driver/owner details)
+  Future<Map<String, dynamic>?> getUserById(String userId) async {
+    try {
+      DocumentSnapshot userDoc = await _firestore.collection("users").doc(userId).get();
+      if (userDoc.exists) {
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        userData["id"] = userDoc.id; // 🔹 Add the userId to the data
+        return userData;
+      }
+    } catch (e) {
+      print("Error fetching user by ID: $e");
+    }
+    return null;
+  }
+
+  /// 🔍 Fetches a specific vehicle by its ID
+  Future<Map<String, dynamic>?> getVehicleById(String vehicleId) async {
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) throw Exception("User not logged in");
+
+    try {
+      DocumentSnapshot vehicleDoc = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(userId)
+          .collection("vehicles")
+          .doc(vehicleId)
+          .get();
+
+      if (vehicleDoc.exists) {
+        Map<String, dynamic> data = vehicleDoc.data() as Map<String, dynamic>;
+        data["id"] = vehicleDoc.id; // Include document ID
+        return data;
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print("Error fetching vehicle by ID: $e");
+      return null;
     }
   }
 }

@@ -614,18 +614,73 @@ class FirebaseFunctions {
     }
   }
 
-  /// Fetches user details by userId (used to get driver/owner details)
-  Future<Map<String, dynamic>?> getUserById(String userId) async {
+  /// 🔍 Fetches a specific vehicle by its ID
+  Future<Map<String, dynamic>?> getVehicleById(String vehicleId) async {
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) throw Exception("User not logged in");
+
     try {
-      DocumentSnapshot userDoc = await _firestore.collection("users").doc(userId).get();
-      if (userDoc.exists) {
-        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-        userData["id"] = userDoc.id; // 🔹 Add the userId to the data
-        return userData;
+      DocumentSnapshot vehicleDoc = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(userId)
+          .collection("vehicles")
+          .doc(vehicleId)
+          .get();
+
+      if (vehicleDoc.exists) {
+        Map<String, dynamic> data = vehicleDoc.data() as Map<String, dynamic>;
+        data["id"] = vehicleDoc.id; // Include document ID
+        return data;
+      } else {
+        return null;
       }
     } catch (e) {
-      print("Error fetching user by ID: $e");
+      print("Error fetching vehicle by ID: $e");
+      return null;
     }
-    return null;
   }
+
+  /// Fetches driver details by ID from either users or family subcollection
+  /// Fetches driver info by ID from either users or family subcollection of the carpool owner
+  Future<Map<String, dynamic>?> getDriverById({
+    required String driverId,
+    required String carpoolOwnerId, // Always the account owner
+  }) async {
+    try {
+      final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+      // Case 1: If the driverId is the same as the account owner's ID
+      if (driverId == carpoolOwnerId) {
+        DocumentSnapshot userDoc =
+            await _firestore.collection("users").doc(driverId).get();
+        if (userDoc.exists) {
+          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+          userData["id"] = driverId;
+          return userData;
+        }
+      }
+
+      // Case 2: If the driverId is in the family subcollection of the carpool owner
+      DocumentSnapshot familyDoc = await _firestore
+          .collection("users")
+          .doc(carpoolOwnerId)
+          .collection("family")
+          .doc(driverId)
+          .get();
+
+      if (familyDoc.exists) {
+        Map<String, dynamic> familyData =
+            familyDoc.data() as Map<String, dynamic>;
+        familyData["id"] = driverId;
+        return familyData;
+      }
+
+      return null; // Not found
+    } catch (e) {
+      print("Error fetching driver: $e");
+      return null;
+    }
+}
+
+
 }
