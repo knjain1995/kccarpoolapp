@@ -613,4 +613,19 @@ class FirebaseFunctions {
       throw Exception("Failed to check vehicle availability.");
     }
   }
+
+  /// Fetches user details by userId (used to get driver/owner details)
+  Future<Map<String, dynamic>?> getUserById(String userId) async {
+    try {
+      DocumentSnapshot userDoc = await _firestore.collection("users").doc(userId).get();
+      if (userDoc.exists) {
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        userData["id"] = userDoc.id; // 🔹 Add the userId to the data
+        return userData;
+      }
+    } catch (e) {
+      print("Error fetching user by ID: $e");
+    }
+    return null;
+  }
 }

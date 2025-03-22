@@ -1,10 +1,9 @@
+// 📂 Location: lib/modules/carpool/screens/
+
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
 
-/// ✅ Carpool Listing Screen - Displays all carpools created by the user.
 class CarpoolListScreen extends StatefulWidget {
   @override
   _CarpoolListScreenState createState() => _CarpoolListScreenState();
@@ -13,108 +12,100 @@ class CarpoolListScreen extends StatefulWidget {
 class _CarpoolListScreenState extends State<CarpoolListScreen> {
   final FirebaseFunctions _firebaseFunctions = FirebaseFunctions();
   List<Map<String, dynamic>> _carpools = [];
-  List<Map<String, dynamic>> _adults = [];
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadCarpools();
+    _loadCarpools(); // 🔄 Load all carpools when screen opens
   }
 
-  /// 🔄 Fetch carpools and adult family members (including account owner)
+  /// Fetches carpool data and driver info
   Future<void> _loadCarpools() async {
-    setState(() => _isLoading = true);
+    List<Map<String, dynamic>> carpools = await _firebaseFunctions.getCarpools();
 
-    var carpools = await _firebaseFunctions.getCarpools();
-    var userData = await _firebaseFunctions.getUserData();
-    var family = await _firebaseFunctions.getFamilyMembers();
+    // 🔄 For each carpool, fetch driver info and attach to carpool map
+    for (var carpool in carpools) {
+      String driverId = carpool['carpoolDriverId'];
 
-    _adults = family.where((f) => f['isAdult'] == true).toList();
+      Map<String, dynamic>? driverData = await _firebaseFunctions.getUserById(driverId);
 
-    if (userData != null) {
-      _adults.insert(0, {
-        "id": userData["id"],
-        "fullName": userData["fullName"],
-        "profilePhoto": userData["profilePhoto"],
-      });
+      carpool['driverName'] = driverData?['fullName'] ?? "Unknown";
+      carpool['driverPhoto'] = driverData?['profilePhoto']; // Can be null
     }
 
     setState(() {
       _carpools = carpools;
-      _isLoading = false;
     });
   }
 
-  /// 🔍 Get driver's full name using driver ID
-  String _getDriverName(String driverId) {
-    var driver = _adults.firstWhere((a) => a['id'] == driverId, orElse: () => {});
-    return driver['fullName'] ?? "Unknown";
+  /// Deletes a carpool by its ID
+  Future<void> _deleteCarpool(String carpoolId) async {
+    await _firebaseFunctions.deleteCarpool(carpoolId);
+    _loadCarpools(); // 🔁 Reload list after deletion
   }
 
-  /// 🖼️ Get driver photo (local path)
-  String? _getDriverPhoto(String driverId) {
-    var driver = _adults.firstWhere((a) => a['id'] == driverId, orElse: () => {});
-    return driver['profilePhoto'];
-  }
-
-  /// 🧩 Builds a single carpool card
+  /// Builds a card for each carpool
   Widget _buildCarpoolCard(Map<String, dynamic> carpool) {
-    String driverName = _getDriverName(carpool['carpoolDriverId']);
-    String? driverPhoto = _getDriverPhoto(carpool['carpoolDriverId']);
-    String start = carpool['carpoolRouteStart'];
-    String end = carpool['carpoolRouteEnd'];
-
-    DateTime date = (carpool['carpoolDate'] as Timestamp).toDate();
-    DateTime time = (carpool['carpoolTime'] as Timestamp).toDate();
-
-    String formattedDate = DateFormat('dd MMM yyyy').format(date);
-    String formattedTime = DateFormat('hh:mm a').format(time);
+    DateTime date = carpool['carpoolDate'].toDate();
+    DateTime time = carpool['carpoolTime'].toDate();
 
     return Card(
-      margin: EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundImage: driverPhoto != null ? FileImage(File(driverPhoto)) : null,
-          radius: 24,
-          child: driverPhoto == null ? Icon(Icons.person) : null,
-        ),
-        title: Row(
+      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        child: Row(
           children: [
+            // 👤 Driver photo or fallback icon
+            CircleAvatar(
+              radius: 24,
+              backgroundImage: carpool['driverPhoto'] != null
+                  ? FileImage(File(carpool['driverPhoto']))
+                  : null,
+              child: carpool['driverPhoto'] == null ? Icon(Icons.person) : null,
+            ),
+            SizedBox(width: 12),
+
+            // 📝 Carpool Details (name, route, driver, date, time)
             Expanded(
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.circle, size: 8, color: Colors.green),
-                  SizedBox(width: 5),
-                  Expanded(child: Text(start, overflow: TextOverflow.ellipsis)),
-                  Icon(Icons.arrow_forward, size: 16),
-                  Expanded(child: Text(end, overflow: TextOverflow.ellipsis)),
+                  // 🚌 Route line
+                  Row(
+                    children: [
+                      Icon(Icons.circle, size: 10, color: Colors.green),
+                      SizedBox(width: 4),
+                      Text(carpool['carpoolRouteStart'], style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(width: 6),
+                      Icon(Icons.arrow_forward, size: 18),
+                      SizedBox(width: 6),
+                      Text(carpool['carpoolRouteEnd'], style: TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+
+                  Text("Driver: ${carpool['driverName']}"),
+                  Text("Date: ${_formatDate(date)}, Time: ${_formatTime(time)}"),
                 ],
               ),
             ),
-          ],
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Driver: $driverName"),
-            Text("Date: $formattedDate, Time: $formattedTime"),
-            SizedBox(height: 4),
-          ],
-        ),
-        trailing: Column(
-          children: [
-            IconButton(
-              icon: Icon(Icons.edit, size: 20),
-              onPressed: () {
-                // TODO: Hook up to Edit Carpool
-              },
-            ),
-            IconButton(
-              icon: Icon(Icons.delete, size: 20, color: Colors.red),
-              onPressed: () {
-                // TODO: Hook up to Delete Carpool
-              },
+
+            // ✏️ Edit & Delete Icons
+            Column(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.edit, color: Colors.black54),
+                  onPressed: () {
+                    // TODO: Implement Edit Screen
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _deleteCarpool(carpool['carpoolId']),
+                ),
+              ],
             ),
           ],
         ),
@@ -122,21 +113,36 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
     );
   }
 
+  /// Helper: Format date
+  String _formatDate(DateTime date) {
+    return "${date.day.toString().padLeft(2, '0')} "
+        "${_monthName(date.month)} ${date.year}";
+  }
+
+  /// Helper: Format time
+  String _formatTime(DateTime time) {
+    return "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+  }
+
+  /// Helper: Month name
+  String _monthName(int month) {
+    const List<String> months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    return months[month - 1];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Your Carpools")),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : _carpools.isEmpty
-              ? Center(child: Text("No carpools found."))
-              : ListView.builder(
-                  padding: EdgeInsets.all(12),
-                  itemCount: _carpools.length,
-                  itemBuilder: (context, index) {
-                    return _buildCarpoolCard(_carpools[index]);
-                  },
-                ),
+      body: ListView.builder(
+        itemCount: _carpools.length,
+        itemBuilder: (context, index) {
+          return _buildCarpoolCard(_carpools[index]);
+        },
+      ),
     );
   }
 }
