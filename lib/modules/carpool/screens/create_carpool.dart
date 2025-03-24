@@ -32,6 +32,8 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   String? _selectedDriver;
   List<Map<String, dynamic>> _vehicles = [];
   List<Map<String, dynamic>> _adults = []; // Account owner & adults in the family
+  List<Map<String, dynamic>> _familyMembers = []; // 🔹 All family members for participant selection
+  List<String> _selectedParticipants = []; // 🔹 Stores selected participant IDs
 
   // Return Trip Options
   bool _hasReturnTrip = false;
@@ -48,6 +50,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     var userData = await _firebaseFunctions.getUserData();
     var familyMembers = await _firebaseFunctions.getFamilyMembers();
     var vehicleData = await _firebaseFunctions.getVehicles();
+    List<Map<String, dynamic>> _familyMembers = []; // 🔹 All family members for participant selection
 
      // 🔄 If date/time is selected, check availability for each vehicle
     if (_selectedDate != null && _selectedTime != null) {
@@ -73,27 +76,25 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     }
 
     setState(() {
-      _selectedOwner = userData?["id"]; // Default owner should be account owner's ID
+      _selectedOwner = userData?["id"]; // 🔐 Account owner is always the carpool owner
 
-      // ✅ Ensure _adults contains both the account owner and adult family members
       _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
 
+      // 🔹 Include account owner in _adults for driver selection
       if (userData != null) {
         _adults.insert(0, {
-          "id": userData["id"], // ✅ Use user ID instead of fullName
+          "id": userData["id"],
           "fullName": userData["fullName"],
           "email": userData["email"],
           "phoneNumber": userData["phoneNumber"],
-          "isAdult": true, // ✅ Ensure account owner is treated as an adult
-          "driverLicense": userData["driverLicense"] ?? "", // ✅ Handle driver license for selection
+          "isAdult": true,
+          "driverLicense": userData["driverLicense"] ?? "",
         });
       }
 
-      _vehicles = vehicleData;
+      _familyMembers = familyMembers; // 🔹 Store full list for participant selection
 
-      print("Account Owner ID: ${userData?['id']}");
-      print("Adults List: $_adults");
-      print("Vehicles List: $_vehicles");
+      _vehicles = vehicleData;
     });
   }
 
@@ -183,6 +184,9 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       _selectedTime!.minute,
     ));
 
+    // 👥 Prepare carpoolParticipants (driver + selected participants)
+    List<String> allParticipants = [_selectedDriver!, ..._selectedParticipants.toSet()];
+
     try {
       _firebaseFunctions.createCarpool(
         carpoolName: _carpoolNameController.text.trim(),
@@ -193,6 +197,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
         carpoolVehicleId: _selectedVehicle!,
         carpoolOwnerId: _selectedOwner!,
         carpoolDriverId: _selectedDriver!,
+        carpoolParticipants: allParticipants,
         carpoolCapacity: int.parse(_capacityController.text),
         carpoolReturnTrip: _hasReturnTrip,
         carpoolReturnStayOnLocation: _hasReturnTrip ? _stayOnLocation : null,
@@ -285,24 +290,20 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             _buildDateTimePicker("Select Date", _selectedDate, _pickDate),
             _buildDateTimePicker("Select Time", _selectedTime, _pickTime),
 
-            // // Vehicle Selection
-            // _buildDropdown("Select Vehicle", _selectedVehicle, _vehicles, "vehicleId", "vehicleMake"),
-
-            // // Owner Selection
-            // _buildDropdown("Carpool Owner", _selectedOwner, _adults, "id", "fullName"),
-
-            // // Driver Selection
-            // _buildDropdown("Driver", _selectedDriver, _adults, "id", "fullName")
-
             // Owner Dropdown
-            _buildDropdown(
-              "Carpool Owner",
-              _selectedOwner,
-              _adults,
-              "id",
-              "fullName",
-              (value) => _selectedOwner = value, // 🔹 Updates _selectedOwner
+            TextFormField(
+              decoration: InputDecoration(labelText: "Carpool Owner"),
+              initialValue: _adults.firstWhere((a) => a['id'] == _selectedOwner)['fullName'],
+              enabled: false, // 🔒 Locked
             ),
+            // _buildDropdown(
+            //   "Carpool Owner",
+            //   _selectedOwner,
+            //   _adults,
+            //   "id",
+            //   "fullName",
+            //   (value) => _selectedOwner = value, // 🔹 Updates _selectedOwner
+            // ),
 
             // Driver Dropdown
             _buildDropdown(
@@ -325,6 +326,38 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               (value) => _selectedVehicle = value,
               showAvailabilityIcon: true, // ✅ Enable icon only for vehicles
             ),
+
+            // 📌 Purpose: Lets user select additional carpool participants from the family
+            if (_selectedDriver != null) ...[
+              SizedBox(height: 20),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text("Select Participants", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              SizedBox(height: 10),
+
+                // 🔄 Loop through family members and build checkboxes
+              Column(
+                children: _familyMembers.where((member) => member['id'] != _selectedDriver).map((member) {
+                  final memberId = member['id'];
+                  final memberName = member['fullName'];
+
+                  return CheckboxListTile(
+                    title: Text(memberName),
+                    value: _selectedParticipants.contains(memberId),
+                    onChanged: (bool? value) {
+                      setState(() {
+                        if (value == true) {
+                          _selectedParticipants.add(memberId);
+                        } else {
+                          _selectedParticipants.remove(memberId);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
 
             // Carpool Capacity
             _buildTextField("Capacity", _capacityController, keyboardType: TextInputType.number),
