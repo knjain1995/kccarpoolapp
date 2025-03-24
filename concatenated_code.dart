@@ -761,7 +761,6 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     var userData = await _firebaseFunctions.getUserData();
     var familyMembers = await _firebaseFunctions.getFamilyMembers();
     var vehicleData = await _firebaseFunctions.getVehicles();
-    List<Map<String, dynamic>> _familyMembers = []; // 🔹 All family members for participant selection
 
      // 🔄 If date/time is selected, check availability for each vehicle
     if (_selectedDate != null && _selectedTime != null) {
@@ -1004,7 +1003,10 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             // Owner Dropdown
             TextFormField(
               decoration: InputDecoration(labelText: "Carpool Owner"),
-              initialValue: _adults.firstWhere((a) => a['id'] == _selectedOwner)['fullName'],
+              initialValue: _adults.firstWhere(
+                (a) => a['id'] == _selectedOwner,
+                orElse: () => {"fullName": "Unknown"},
+              )['fullName'],
               enabled: false, // 🔒 Locked
             ),
             // _buildDropdown(
