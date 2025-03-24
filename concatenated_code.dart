@@ -788,10 +788,17 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     setState(() {
       _selectedOwner = userData?["id"]; // 🔐 Account owner is always the carpool owner
 
+      // add all adults of the family
       _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
 
-      // 🔹 Include account owner in _adults for driver selection
+      // add all members of the family
+      _familyMembers.addAll(familyMembers);
+
+      // assign all vehicle data to vehicles variable
+      _vehicles = vehicleData;
+
       if (userData != null) {
+      // 🔹 Include account owner in _adults for driver selectionZ
         _adults.insert(0, {
           "id": userData["id"],
           "fullName": userData["fullName"],
@@ -800,11 +807,17 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
           "isAdult": true,
           "driverLicense": userData["driverLicense"] ?? "",
         });
+
+      // 🔹 Include account owner in _familyMembers for participant selection
+         _familyMembers.add({
+          "id": userData["id"],
+          "fullName": userData["fullName"],
+          "email": userData["email"],
+          "phoneNumber": userData["phoneNumber"],
+          "isAdult": true,
+          "driverLicense": userData["driverLicense"] ?? "",
+        });
       }
-
-      _familyMembers = familyMembers; // 🔹 Store full list for participant selection
-
-      _vehicles = vehicleData;
     });
   }
 
@@ -1001,6 +1014,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             _buildDateTimePicker("Select Time", _selectedTime, _pickTime),
 
             // Owner Dropdown
+            // TextFormField(
+            //   decoration: InputDecoration(labelText: "Carpool Owner"),
+            //   initialValue: _adults.firstWhere((a) => a['id'] == _selectedOwner)['fullName'],
+            //   enabled: false, // 🔒 Locked
+            // ),
             TextFormField(
               decoration: InputDecoration(labelText: "Carpool Owner"),
               initialValue: _adults.firstWhere(
