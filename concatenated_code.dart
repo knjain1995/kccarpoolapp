@@ -732,6 +732,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   final TextEditingController _routeStartController = TextEditingController();
   final TextEditingController _routeEndController = TextEditingController();
   final TextEditingController _capacityController = TextEditingController(text: "4");
+  Map<String, dynamic>? _loggedInUserData;
 
   // Date & Time Selection
   DateTime? _selectedDate;
@@ -785,8 +786,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       }
     }
 
-    setState(() {
-      _selectedOwner = userData?["id"]; // 🔐 Account owner is always the carpool owner
+    setState(() async {
+      _loggedInUserData = await _firebaseFunctions.getUserData();
+      _selectedOwner = _loggedInUserData?["id"];
+      print("Selected Owner:");
+      print(_selectedOwner);
 
       // add all adults of the family
       _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
@@ -1019,14 +1023,13 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             //   initialValue: _adults.firstWhere((a) => a['id'] == _selectedOwner)['fullName'],
             //   enabled: false, // 🔒 Locked
             // ),
-            TextFormField(
-              decoration: InputDecoration(labelText: "Carpool Owner"),
-              initialValue: _adults.firstWhere(
-                (a) => a['id'] == _selectedOwner,
-                orElse: () => {"fullName": "Unknown"},
-              )['fullName'],
-              enabled: false, // 🔒 Locked
-            ),
+            // 🔒 Locked Carpool Owner Field - Always the logged-in account owner
+            if (_selectedOwner != null)
+              ListTile(
+                title: Text("Carpool Owner"),
+                subtitle: Text(_loggedInUserData?["fullName"] ?? "Unknown"),
+                leading: Icon(Icons.lock),
+              ),
             // _buildDropdown(
             //   "Carpool Owner",
             //   _selectedOwner,

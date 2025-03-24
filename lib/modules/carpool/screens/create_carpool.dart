@@ -21,6 +21,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   final TextEditingController _routeStartController = TextEditingController();
   final TextEditingController _routeEndController = TextEditingController();
   final TextEditingController _capacityController = TextEditingController(text: "4");
+  Map<String, dynamic>? _loggedInUserData;
 
   // Date & Time Selection
   DateTime? _selectedDate;
@@ -50,6 +51,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     var userData = await _firebaseFunctions.getUserData();
     var familyMembers = await _firebaseFunctions.getFamilyMembers();
     var vehicleData = await _firebaseFunctions.getVehicles();
+    _loggedInUserData = await _firebaseFunctions.getUserData();
 
      // 🔄 If date/time is selected, check availability for each vehicle
     if (_selectedDate != null && _selectedTime != null) {
@@ -75,7 +77,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     }
 
     setState(() {
-      _selectedOwner = userData?["id"]; // 🔐 Account owner is always the carpool owner
+      _selectedOwner = _loggedInUserData?["id"];
       print("Selected Owner:");
       print(_selectedOwner);
 
@@ -310,14 +312,13 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             //   initialValue: _adults.firstWhere((a) => a['id'] == _selectedOwner)['fullName'],
             //   enabled: false, // 🔒 Locked
             // ),
-            TextFormField(
-              decoration: InputDecoration(labelText: "Carpool Owner"),
-              initialValue: _adults.firstWhere(
-                (a) => a['id'] == _selectedOwner,
-                orElse: () => {"fullName": "Unknown"},
-              )['fullName'],
-              enabled: false, // 🔒 Locked
-            ),
+            // 🔒 Locked Carpool Owner Field - Always the logged-in account owner
+            if (_selectedOwner != null && _loggedInUserData != null)
+              ListTile(
+                title: Text("Carpool Owner"),
+                subtitle: Text(_loggedInUserData?["fullName"] ?? "Unknown"),
+                leading: Icon(Icons.lock),
+              ),
             // _buildDropdown(
             //   "Carpool Owner",
             //   _selectedOwner,
