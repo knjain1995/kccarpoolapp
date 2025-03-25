@@ -65,6 +65,15 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
     String formattedDate = DateFormat('dd MMM yyyy').format(carpoolDate);
     String formattedTime = DateFormat('hh:mm a').format(carpoolTime);
 
+    // 👇 Get total capacity and participants from the carpool document
+    final int capacity = carpool['carpoolCapacity'] ?? 0;
+    final List<dynamic> participants = carpool['carpoolParticipants'] ?? [];
+    final int availableSeats = capacity - participants.length;
+
+    // 👇 Determine carpool status
+    final String status = availableSeats == 0 ? "Full" : "Available";
+    final Color statusColor = status == "Full" ? Colors.red : Colors.green;
+
     return Card(
       elevation: 3,
       margin: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -156,7 +165,10 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
                 // 🔹 Seats + Actions
                 Row(
                   children: [
-                    Text("Seats: ${carpool['carpoolCapacity']}/${carpool['carpoolCapacity']}"),
+                    Text(
+                      "Seats: $availableSeats/$capacity",
+                      style: TextStyle(fontSize: 14),
+                    ),
                     SizedBox(width: 12),
                     IconButton(
                       icon: Icon(Icons.edit, color: Colors.orange),

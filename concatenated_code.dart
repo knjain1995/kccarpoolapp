@@ -762,6 +762,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     var userData = await _firebaseFunctions.getUserData();
     var familyMembers = await _firebaseFunctions.getFamilyMembers();
     var vehicleData = await _firebaseFunctions.getVehicles();
+    _loggedInUserData = await _firebaseFunctions.getUserData();
 
      // 🔄 If date/time is selected, check availability for each vehicle
     if (_selectedDate != null && _selectedTime != null) {
@@ -786,8 +787,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       }
     }
 
-    setState(() async {
-      _loggedInUserData = await _firebaseFunctions.getUserData();
+    setState(() {
       _selectedOwner = _loggedInUserData?["id"];
       print("Selected Owner:");
       print(_selectedOwner);
@@ -1024,7 +1024,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             //   enabled: false, // 🔒 Locked
             // ),
             // 🔒 Locked Carpool Owner Field - Always the logged-in account owner
-            if (_selectedOwner != null)
+            if (_selectedOwner != null && _loggedInUserData != null)
               ListTile(
                 title: Text("Carpool Owner"),
                 subtitle: Text(_loggedInUserData?["fullName"] ?? "Unknown"),
