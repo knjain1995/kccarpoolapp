@@ -43,6 +43,16 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
           : "Unknown Vehicle";
       carpool['vehicleImage'] = vehicleData?['vehicleImage'];
 
+      // Inside the for-loop that enriches each carpool:
+      final List<String> participantIds = List<String>.from(carpool['carpoolParticipants'] ?? []);
+      final List<Map<String, dynamic>> resolvedParticipants =
+          await _firebaseFunctions.getCarpoolParticipants(
+        carpoolOwnerId: carpool['carpoolOwnerId'],
+        carpoolDriverId: carpool['carpoolDriverId'],
+        participantIds: participantIds,
+      );
+      carpool['resolvedParticipants'] = resolvedParticipants;
+
       enrichedCarpools.add(carpool);
     }
 
@@ -129,6 +139,11 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
               ],
             ),
 
+            if (carpool.containsKey('resolvedParticipants'))
+              Text("Participants:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              _buildParticipantAvatars(List<Map<String, dynamic>>.from(carpool['resolvedParticipants'])),
+
+
             // 🔹 Date & Time
             Row(
               children: [
@@ -189,6 +204,48 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
       ),
     );
   }
+
+    /// 👥 Displays participant avatars (excluding the driver)
+  Widget _buildParticipantAvatars(List<Map<String, dynamic>> participants) {
+    if (participants.isEmpty) return SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 6),
+      child: Row(
+        children: [
+          Icon(Icons.group, size: 20, color: Colors.grey[700]),
+          SizedBox(width: 8),
+          ...participants.map((p) {
+            String name = p['fullName'] ?? 'Unknown';
+            String? photo = p['profilePhoto'];
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundImage: photo != null && photo.isNotEmpty
+                        ? FileImage(File(photo))
+                        : null,
+                    child: (photo == null || photo.isEmpty)
+                        ? Icon(Icons.person, size: 16)
+                        : null,
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    name.split(' ').first,
+                    style: TextStyle(fontSize: 10),
+                  )
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
 
   /// 🔹 Builds the full screen
   @override

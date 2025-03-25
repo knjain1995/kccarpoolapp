@@ -92,10 +92,10 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       _adults.clear(); // ✅ Clear previous data before adding adults again
       _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
 
-      _familyMembers.removeWhere((m) => m["id"] == userData["id"]); // prevent duplicate if already added
-      _adults.removeWhere((m) => m["id"] == userData["id"]);        // prevent duplicate if already added
+      _familyMembers.removeWhere((m) => m["id"] == userData?["id"]); // prevent duplicate if already added
+      _adults.removeWhere((m) => m["id"] == userData?["id"]);        // prevent duplicate if already added
 
-      // assign all vehicle data to vehicles variable
+      // assign all vehicle data to vehicles variables
       _vehicles = vehicleData;
 
       if (userData != null) {

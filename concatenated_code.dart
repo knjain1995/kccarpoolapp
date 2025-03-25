@@ -553,6 +553,16 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
           : "Unknown Vehicle";
       carpool['vehicleImage'] = vehicleData?['vehicleImage'];
 
+      // Inside the for-loop that enriches each carpool:
+      final List<String> participantIds = List<String>.from(carpool['carpoolParticipants'] ?? []);
+      final List<Map<String, dynamic>> resolvedParticipants =
+          await _firebaseFunctions.getCarpoolParticipants(
+        carpoolOwnerId: carpool['carpoolOwnerId'],
+        carpoolDriverId: carpool['carpoolDriverId'],
+        participantIds: participantIds,
+      );
+      carpool['resolvedParticipants'] = resolvedParticipants;
+
       enrichedCarpools.add(carpool);
     }
 
@@ -639,6 +649,11 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
               ],
             ),
 
+            if (carpool.containsKey('resolvedParticipants'))
+              Text("Participants:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              _buildParticipantAvatars(List<Map<String, dynamic>>.from(carpool['resolvedParticipants'])),
+
+
             // 🔹 Date & Time
             Row(
               children: [
@@ -699,6 +714,48 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
       ),
     );
   }
+
+    /// 👥 Displays participant avatars (excluding the driver)
+  Widget _buildParticipantAvatars(List<Map<String, dynamic>> participants) {
+    if (participants.isEmpty) return SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 6),
+      child: Row(
+        children: [
+          Icon(Icons.group, size: 20, color: Colors.grey[700]),
+          SizedBox(width: 8),
+          ...participants.map((p) {
+            String name = p['fullName'] ?? 'Unknown';
+            String? photo = p['profilePhoto'];
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Column(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundImage: photo != null && photo.isNotEmpty
+                        ? FileImage(File(photo))
+                        : null,
+                    child: (photo == null || photo.isEmpty)
+                        ? Icon(Icons.person, size: 16)
+                        : null,
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    name.split(' ').first,
+                    style: TextStyle(fontSize: 10),
+                  )
+                ],
+              ),
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
 
   /// 🔹 Builds the full screen
   @override
@@ -809,9 +866,16 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
 
       // add all members of the family
+      _familyMembers.clear(); // ✅ Prevent duplicates
       _familyMembers.addAll(familyMembers);
 
-      // assign all vehicle data to vehicles variable
+      _adults.clear(); // ✅ Clear previous data before adding adults again
+      _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
+
+      _familyMembers.removeWhere((m) => m["id"] == userData?["id"]); // prevent duplicate if already added
+      _adults.removeWhere((m) => m["id"] == userData?["id"]);        // prevent duplicate if already added
+
+      // assign all vehicle data to vehicles variables
       _vehicles = vehicleData;
 
       if (userData != null) {
@@ -3203,7 +3267,77 @@ class FirebaseFunctions {
       print("Error fetching driver: $e");
       return null;
     }
-}
+  }
+
+  /// 🔍 Fetches a user's document from the `users` collection using their user ID
+  Future<Map<String, dynamic>?> getUserById(String userId) async {
+    try {
+      // Fetch the document from the "users" collection
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        // Return the user data along with their ID
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        userData['id'] = userDoc.id;
+        return userData;
+      } else {
+        print("⚠️ No user found with ID: $userId");
+        return null;
+      }
+    } catch (e) {
+      print("❌ Error fetching user by ID ($userId): $e");
+      return null;
+    }
+  }
+
+
+  /// 🔹 Resolves participant details (excluding driver) for a carpool
+  Future<List<Map<String, dynamic>>> getCarpoolParticipants({
+    required String carpoolOwnerId,
+    required String carpoolDriverId,
+    required List<String> participantIds,
+  }) async {
+    List<Map<String, dynamic>> resolvedParticipants = [];
+
+    try {
+      for (String participantId in participantIds) {
+        // 🚫 Skip the driver
+        if (participantId == carpoolDriverId) continue;
+
+        Map<String, dynamic>? participantData;
+
+        if (participantId == carpoolOwnerId) {
+          // ✅ Reuse getUserById for account owner
+          participantData = await getUserById(participantId);
+        } else {
+          // ✅ Participant is a family member
+          DocumentSnapshot doc = await _firestore
+              .collection("users")
+              .doc(carpoolOwnerId)
+              .collection("family")
+              .doc(participantId)
+              .get();
+          if (doc.exists) {
+            participantData = doc.data() as Map<String, dynamic>;
+          }
+        }
+
+        if (participantData != null) {
+          participantData["id"] = participantId;
+          resolvedParticipants.add(participantData);
+        }
+      }
+
+      return resolvedParticipants;
+    } catch (e) {
+      print("❌ Error resolving carpool participants: $e");
+      return [];
+    }
+  }
+
 
 
 }

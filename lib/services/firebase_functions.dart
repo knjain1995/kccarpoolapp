@@ -682,7 +682,77 @@ class FirebaseFunctions {
       print("Error fetching driver: $e");
       return null;
     }
-}
+  }
+
+  /// 🔍 Fetches a user's document from the `users` collection using their user ID
+  Future<Map<String, dynamic>?> getUserById(String userId) async {
+    try {
+      // Fetch the document from the "users" collection
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(userId)
+          .get();
+
+      if (userDoc.exists) {
+        // Return the user data along with their ID
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        userData['id'] = userDoc.id;
+        return userData;
+      } else {
+        print("⚠️ No user found with ID: $userId");
+        return null;
+      }
+    } catch (e) {
+      print("❌ Error fetching user by ID ($userId): $e");
+      return null;
+    }
+  }
+
+
+  /// 🔹 Resolves participant details (excluding driver) for a carpool
+  Future<List<Map<String, dynamic>>> getCarpoolParticipants({
+    required String carpoolOwnerId,
+    required String carpoolDriverId,
+    required List<String> participantIds,
+  }) async {
+    List<Map<String, dynamic>> resolvedParticipants = [];
+
+    try {
+      for (String participantId in participantIds) {
+        // 🚫 Skip the driver
+        if (participantId == carpoolDriverId) continue;
+
+        Map<String, dynamic>? participantData;
+
+        if (participantId == carpoolOwnerId) {
+          // ✅ Reuse getUserById for account owner
+          participantData = await getUserById(participantId);
+        } else {
+          // ✅ Participant is a family member
+          DocumentSnapshot doc = await _firestore
+              .collection("users")
+              .doc(carpoolOwnerId)
+              .collection("family")
+              .doc(participantId)
+              .get();
+          if (doc.exists) {
+            participantData = doc.data() as Map<String, dynamic>;
+          }
+        }
+
+        if (participantData != null) {
+          participantData["id"] = participantId;
+          resolvedParticipants.add(participantData);
+        }
+      }
+
+      return resolvedParticipants;
+    } catch (e) {
+      print("❌ Error resolving carpool participants: $e");
+      return [];
+    }
+  }
+
 
 
 }
