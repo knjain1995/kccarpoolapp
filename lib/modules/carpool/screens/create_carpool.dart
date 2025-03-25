@@ -35,6 +35,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   List<Map<String, dynamic>> _adults = []; // Account owner & adults in the family
   List<Map<String, dynamic>> _familyMembers = []; // 🔹 All family members for participant selection
   List<String> _selectedParticipants = []; // 🔹 Stores selected participant IDs
+  int? _vehicleMaxCapacity; // Holds the selected vehicle’s seatingCapacity
 
   // Return Trip Options
   bool _hasReturnTrip = false;
@@ -169,6 +170,15 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   void _createCarpool() async {
     if (!_validateCarpoolInputs()) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please fill all required fields!")));
+      return;
+    }
+
+    // 🚫 Check if entered capacity exceeds max vehicle capacity
+    if (_vehicleMaxCapacity != null &&
+        int.tryParse(_capacityController.text.trim())! > _vehicleMaxCapacity!) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Capacity cannot exceed vehicle’s max capacity ($_vehicleMaxCapacity).")),
+      );
       return;
     }
 
@@ -346,7 +356,23 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               _vehicles,
               "id",
               "vehicleMake",
-              (value) => _selectedVehicle = value,
+              // (value) => _selectedVehicle = value,
+              (value) {
+              setState(() {
+                _selectedVehicle = value;
+                // 🧠 Fetch the selected vehicle's max seating capacity
+                Map<String, dynamic>? selectedVehicleData =
+                    _vehicles.firstWhere((v) => v['id'] == value, orElse: () => {});
+
+                if (selectedVehicleData != null && selectedVehicleData['seatingCapacity'] != null) {
+                  _vehicleMaxCapacity = selectedVehicleData['seatingCapacity'];
+                  _capacityController.text = _vehicleMaxCapacity.toString(); // ✅ Auto-fill capacity
+                } else {
+                  _vehicleMaxCapacity = null;
+                  _capacityController.text = "";
+                }
+              });
+            },
               showAvailabilityIcon: true, // ✅ Enable icon only for vehicles
             ),
 
@@ -383,7 +409,15 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             ],
 
             // Carpool Capacity
-            _buildTextField("Capacity", _capacityController, keyboardType: TextInputType.number),
+
+            // _buildTextField("Capacity", _capacityController, keyboardType: TextInputType.number),
+            _buildTextField(
+              _vehicleMaxCapacity != null
+                  ? "Capacity (Max: $_vehicleMaxCapacity)"
+                  : "Capacity",
+              _capacityController,
+              keyboardType: TextInputType.number,
+            ),
 
             // Return Trip Toggle
             SwitchListTile(
