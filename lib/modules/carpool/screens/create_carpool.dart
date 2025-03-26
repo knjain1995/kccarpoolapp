@@ -148,6 +148,10 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
           "driverLicense": userData["driverLicense"] ?? "",
         });
       }
+
+      if (_isEditing && _selectedVehicle != null) {
+        _onVehicleSelected(_selectedVehicle!); // ✅ Ensure vehicle max capacity is set for validation
+      }
     });
   }
 
@@ -181,6 +185,28 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
     _selectedDate = carpoolDate.toDate();
     _selectedTime = TimeOfDay.fromDateTime(carpoolTime.toDate());
+
+    // 🔁 Trigger capacity and vehicle availability logic for the selected vehicle
+    if (_selectedVehicle != null) {
+      _onVehicleSelected(_selectedVehicle!);
+    }
+  }
+
+  // 🔄 Called when a vehicle is selected or prefilled to get max seating capacity
+  void _onVehicleSelected(String vehicleId) {
+    final vehicleData = _vehicles.firstWhere(
+      (v) => v['id'] == vehicleId,
+      orElse: () => {},
+    );
+
+    if (vehicleData.isNotEmpty && vehicleData['seatingCapacity'] != null) {
+      _vehicleMaxCapacity = vehicleData['seatingCapacity'];
+
+      // 🧠 If user hasn't entered a capacity yet, set it to vehicle max
+      if (_capacityController.text.isEmpty || int.tryParse(_capacityController.text) == null) {
+        _capacityController.text = _vehicleMaxCapacity.toString();
+      }
+    }
   }
 
   /// Opens a date picker & updates the selected date
@@ -286,6 +312,22 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
     // 👥 Prepare carpoolParticipants (driver + selected participants)
     List<String> allParticipants = [_selectedDriver!, ..._selectedParticipants.toSet()];
+
+    // 🔍 Participant Count Validation
+    int enteredCapacity = int.tryParse(_capacityController.text.trim()) ?? 0;
+    int participantCount = _carpoolParticipants.length;
+
+    // Exclude driver from participant list (just in case)
+    if (_carpoolParticipants.contains(_selectedDriver)) {
+      participantCount -= 1;
+    }
+
+    if (participantCount > (enteredCapacity - 1)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Too many participants selected for the available seats!")),
+      );
+      return; // ❌ Stop submission
+    }
 
     try {
       if (_isEditing && _carpoolId != null) {
@@ -454,21 +496,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               "vehicleMake",
               // (value) => _selectedVehicle = value,
               (value) {
-              setState(() {
-                _selectedVehicle = value;
-                // 🧠 Fetch the selected vehicle's max seating capacity
-                Map<String, dynamic>? selectedVehicleData =
-                    _vehicles.firstWhere((v) => v['id'] == value, orElse: () => {});
-
-                if (selectedVehicleData != null && selectedVehicleData['seatingCapacity'] != null) {
-                  _vehicleMaxCapacity = selectedVehicleData['seatingCapacity'];
-                  _capacityController.text = _vehicleMaxCapacity.toString(); // ✅ Auto-fill capacity
-                } else {
-                  _vehicleMaxCapacity = null;
-                  _capacityController.text = "";
-                }
-              });
-            },
+                setState(() {
+                  _selectedVehicle = value;
+                  _onVehicleSelected(value!); // ✅ This already updates _vehicleMaxCapacity and pre-fills capacity
+                });
+              },
               showAvailabilityIcon: true, // ✅ Enable icon only for vehicles
             ),
 
