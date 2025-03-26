@@ -81,17 +81,23 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     if (_selectedDate != null && _selectedTime != null) {
       for (var vehicle in vehicleData) {
         bool available = await _firebaseFunctions.isVehicleAvailable(
-          vehicleId: vehicle['id'],
-          carpoolDate: Timestamp.fromDate(_selectedDate!),
-          carpoolTime: Timestamp.fromDate(DateTime(
-            _selectedDate!.year,
-            _selectedDate!.month,
-            _selectedDate!.day,
-            _selectedTime!.hour,
-            _selectedTime!.minute,
-          )),
-        );
-        vehicle['isAvailable'] = available; // 🔹 Tag vehicle as available/unavailable
+        vehicleId: vehicle['id'],
+        carpoolDate: Timestamp.fromDate(_selectedDate!),
+        carpoolTime: Timestamp.fromDate(DateTime(
+          _selectedDate!.year,
+          _selectedDate!.month,
+          _selectedDate!.day,
+          _selectedTime!.hour,
+          _selectedTime!.minute,
+        )),
+      );
+
+      // ✅ If in edit mode and this vehicle is the selected one, allow it
+      if (_isEditing && vehicle['id'] == _selectedVehicle) {
+        available = true;
+      }
+
+      vehicle['isAvailable'] = available; // 🔹 Tag vehicle as available/unavailable
       }
     } else {
       // If no time/date selected yet, assume all available
@@ -159,7 +165,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     _selectedDriver = data['carpoolDriverId'];
 
     // 👨‍👩‍👧‍👦 Pre-fill list of participant IDs
+    // 👨‍👩‍👧‍👦 Pre-fill list of participant IDs (excluding driver)
     _carpoolParticipants = List<String>.from(data['carpoolParticipants'] ?? []);
+    _selectedParticipants = _carpoolParticipants
+      .where((id) => id != data['carpoolDriverId'])
+      .toList(); // ✅ Only non-driver participants go into the checkboxes
 
     // 🔄 Return trip toggles
     _hasReturnTrip = data['carpoolReturnTrip'] ?? false;
@@ -241,6 +251,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     }
 
     // ✅ Safety net check before creation (even if dropdown disables vehicle)
+    // 🔓 Allow vehicle if it's already being used by the carpool being edited
     bool stillAvailable = await _firebaseFunctions.isVehicleAvailable(
       vehicleId: _selectedVehicle!,
       carpoolDate: Timestamp.fromDate(_selectedDate!),
@@ -252,6 +263,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
         _selectedTime!.minute,
       )),
     );
+
+    // 🔓 Allow vehicle if it's already being used by the carpool being edited
+    if (_isEditing && _selectedVehicle == _editingCarpool?['carpoolVehicleId']) {
+      stillAvailable = true;
+    }
 
     if (!stillAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Selected vehicle is no longer available.")));
