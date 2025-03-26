@@ -16,6 +16,13 @@ class CreateCarpoolScreen extends StatefulWidget {
 class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   final FirebaseFunctions _firebaseFunctions = FirebaseFunctions();
 
+  Map<String, dynamic>? _editingCarpool; // Will store carpool data for editing
+  String? _carpoolId; // Firestore document ID
+  bool _isEditing = false; // Whether we're editing an existing carpool
+
+  // 👨‍👩‍👧‍👦 Stores selected participant IDs for this carpool
+  List<String> _carpoolParticipants = [];
+
   // Controllers for input fields
   final TextEditingController _carpoolNameController = TextEditingController();
   final TextEditingController _routeStartController = TextEditingController();
@@ -44,7 +51,23 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchUserData(); // Fetch user’s vehicles & family details
+
+    // Ensures we access route arguments only after widget is fully built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 🔄 Check if carpool data is passed for editing
+      final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+
+      if (args != null && args.containsKey('carpoolData')) {
+        _editingCarpool = args['carpoolData']; // 📦 Store the carpool data
+        _carpoolId = _editingCarpool!['carpoolId']; // 🆔 Save Firestore doc ID
+        _isEditing = true; // ✅ We're in edit mode
+
+        // ⬅️ Prefill form fields using the existing carpool data
+        _preFillFormWithCarpoolData(_editingCarpool!);
+      }
+
+      _fetchUserData(); // 🔄 Always fetch vehicles & adults
+    });
   }
 
   /// Fetches the user's vehicles & family members (for selecting driver & owner)
@@ -120,6 +143,34 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
         });
       }
     });
+  }
+
+  // ⬅️ Called from initState when editing an existing carpool
+  void _preFillFormWithCarpoolData(Map<String, dynamic> data) {
+    // 📝 Pre-fill all text controllers
+    _carpoolNameController.text = data['carpoolName'] ?? '';
+    _routeStartController.text = data['carpoolRouteStart'] ?? '';
+    _routeEndController.text = data['carpoolRouteEnd'] ?? '';
+    _capacityController.text = (data['carpoolCapacity'] ?? 0).toString();
+
+    // 🚗 Pre-fill dropdown values
+    _selectedVehicle = data['carpoolVehicleId'];
+    _selectedOwner = data['carpoolOwnerId'];
+    _selectedDriver = data['carpoolDriverId'];
+
+    // 👨‍👩‍👧‍👦 Pre-fill list of participant IDs
+    _carpoolParticipants = List<String>.from(data['carpoolParticipants'] ?? []);
+
+    // 🔄 Return trip toggles
+    _hasReturnTrip = data['carpoolReturnTrip'] ?? false;
+    _stayOnLocation = data['carpoolReturnStayOnLocation'] ?? false;
+
+    // 📅 Parse Timestamp objects into DateTime/TimeOfDay
+    Timestamp carpoolDate = data['carpoolDate'];
+    Timestamp carpoolTime = data['carpoolTime'];
+
+    _selectedDate = carpoolDate.toDate();
+    _selectedTime = TimeOfDay.fromDateTime(carpoolTime.toDate());
   }
 
   /// Opens a date picker & updates the selected date
@@ -221,30 +272,52 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     List<String> allParticipants = [_selectedDriver!, ..._selectedParticipants.toSet()];
 
     try {
-      _firebaseFunctions.createCarpool(
-        carpoolName: _carpoolNameController.text.trim(),
-        carpoolRouteStart: _routeStartController.text.trim(),
-        carpoolRouteEnd: _routeEndController.text.trim(),
-        carpoolDate: carpoolDate,
-        carpoolTime: carpoolTime,
-        carpoolVehicleId: _selectedVehicle!,
-        carpoolOwnerId: _selectedOwner!,
-        carpoolDriverId: _selectedDriver!,
-        carpoolParticipants: allParticipants,
-        carpoolCapacity: int.parse(_capacityController.text),
-        carpoolReturnTrip: _hasReturnTrip,
-        carpoolReturnStayOnLocation: _hasReturnTrip ? _stayOnLocation : null,
-      );
+      if (_isEditing && _carpoolId != null) {
+        // 🔄 UPDATE EXISTING CARPOOL
+        await _firebaseFunctions.updateCarpool(
+          carpoolId: _carpoolId!,
+          updatedData: {
+            "carpoolName": _carpoolNameController.text.trim(),
+            "carpoolRouteStart": _routeStartController.text.trim(),
+            "carpoolRouteEnd": _routeEndController.text.trim(),
+            "carpoolDate": carpoolDate,
+            "carpoolTime": carpoolTime,
+            "carpoolVehicleId": _selectedVehicle!,
+            "carpoolOwnerId": _selectedOwner!,
+            "carpoolDriverId": _selectedDriver!,
+            "carpoolParticipants": allParticipants,
+            "carpoolCapacity": int.parse(_capacityController.text),
+            "carpoolReturnTrip": _hasReturnTrip,
+            "carpoolReturnStayOnLocation": _hasReturnTrip ? _stayOnLocation : null,
+          },
+        );
 
-      // ✅ Show success message
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Carpool Created Successfully!")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Carpool updated!")));
+      } else {
+        // 🆕 CREATE NEW CARPOOL
+        await _firebaseFunctions.createCarpool(
+          carpoolName: _carpoolNameController.text.trim(),
+          carpoolRouteStart: _routeStartController.text.trim(),
+          carpoolRouteEnd: _routeEndController.text.trim(),
+          carpoolDate: carpoolDate,
+          carpoolTime: carpoolTime,
+          carpoolVehicleId: _selectedVehicle!,
+          carpoolOwnerId: _selectedOwner!,
+          carpoolDriverId: _selectedDriver!,
+          carpoolParticipants: allParticipants,
+          carpoolCapacity: int.parse(_capacityController.text),
+          carpoolReturnTrip: _hasReturnTrip,
+          carpoolReturnStayOnLocation: _hasReturnTrip ? _stayOnLocation : null,
+        );
 
-      // ✅ Navigate back to Home Screen
-      Navigator.of(context).pop(); 
-      } catch (e) {
-        // ✅ Handle errors
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error creating carpool: $e")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Carpool Created Successfully!")));
       }
+
+      Navigator.of(context).pop();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error saving carpool: $e")));
+    }
+
   }
 
   
@@ -441,7 +514,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               ),
 
             SizedBox(height: 20),
-            ElevatedButton(onPressed: _createCarpool, child: Text("Create Carpool")),
+            ElevatedButton(onPressed: _createCarpool, child: Text(_isEditing ? "Update Carpool" : "Create Carpool")),
           ],
         ),
       ),

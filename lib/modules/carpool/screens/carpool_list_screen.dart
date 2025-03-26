@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
 import 'package:intl/intl.dart';
 
@@ -188,7 +189,13 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
                     IconButton(
                       icon: Icon(Icons.edit, color: Colors.orange),
                       onPressed: () {
-                        // 🚧 Future: Navigate to edit screen
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.createCarpool,
+                          arguments: {
+                            "carpoolData": carpool, // 🔄 Send full carpool document for editing
+                          },
+                        );
                       },
                     ),
                     IconButton(
