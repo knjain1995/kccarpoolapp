@@ -352,7 +352,9 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
           },
         );
 
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Carpool updated!")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Carpool '${_carpoolNameController.text.trim()}' updated successfully!")),
+        );
       } else {
         // 🆕 CREATE NEW CARPOOL
         await _firebaseFunctions.createCarpool(
@@ -370,7 +372,9 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
           carpoolReturnStayOnLocation: _hasReturnTrip ? _stayOnLocation : null,
         );
 
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Carpool Created Successfully!")));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Carpool '${_carpoolNameController.text.trim()}' created successfully!")),
+        );
       }
 
       Navigator.of(context).pop();
