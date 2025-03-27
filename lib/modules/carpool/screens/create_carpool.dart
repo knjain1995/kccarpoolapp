@@ -136,6 +136,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
           "phoneNumber": userData["phoneNumber"],
           "isAdult": true,
           "driverLicense": userData["driverLicense"] ?? "",
+          "profilePhoto": userData["profilePhoto"],
         });
 
       // 🔹 Include account owner in _familyMembers for participant selection
@@ -146,6 +147,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
           "phoneNumber": userData["phoneNumber"],
           "isAdult": true,
           "driverLicense": userData["driverLicense"] ?? "",
+          "profilePhoto": userData["profilePhoto"],
         });
       }
 
@@ -398,14 +400,17 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
   /// Dropdown builder
   Widget _buildDropdown(
-  String label,
-  String? selectedValue,
-  List<Map<String, dynamic>> items,
-  String idField,
-  String displayField,
-  Function(String?) onChangedCallback, {
-  bool showAvailabilityIcon = false, // ✅ NEW optional flag
-  }) {
+    String label,
+    String? selectedValue,
+    List<Map<String, dynamic>> items,
+    String idField,
+    String displayField,
+    Function(String?) onChangedCallback, {
+    bool showAvailabilityIcon = false,
+    bool showImage = false, // ✅ NEW PARAMETER
+    String imageField = '', // ✅ Which image to use
+    }
+  ) {
     return DropdownButtonFormField(
       value: selectedValue,
       items: items.map((item) {
@@ -413,9 +418,15 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
         return DropdownMenuItem(
           value: item[idField],
-          enabled: !isDisabled, // 🔹 Disable item if unavailable
+          enabled: !isDisabled,
           child: Row(
             children: [
+              if (showImage && item[imageField] != null && item[imageField] != "")
+                CircleAvatar(
+                  backgroundImage: FileImage(File(item[imageField])),
+                  radius: 12,
+                ),
+              if (showImage) SizedBox(width: 8),
               if (showAvailabilityIcon && isDisabled)
                 Icon(Icons.block, color: Colors.redAccent, size: 16),
               if (showAvailabilityIcon && isDisabled) SizedBox(width: 6),
@@ -430,14 +441,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
           ),
         );
       }).toList(),
-      onChanged: (value) {
-        setState(() {
-          onChangedCallback(value as String?);
-        });
-      },
+      onChanged: (value) => setState(() => onChangedCallback(value as String?)),
       decoration: InputDecoration(labelText: label),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -483,7 +491,19 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               _adults,
               "id",
               "fullName",
-              (value) => _selectedDriver = value, // 🔹 Updates _selectedDriver
+              (value) {
+                setState(() {
+                  _selectedDriver = value;
+
+                  // ✅ Auto-clear participants when driver changes
+                  _selectedParticipants.clear();
+
+                  // ✅ Also ensure participants list doesn't include the new driver
+                  _carpoolParticipants.remove(_selectedDriver);
+                });
+              },
+              showImage: true, // ✅ Show driver image
+              imageField: "profilePhoto", // ✅ Use profile image field
             ),
 
             
@@ -494,14 +514,15 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               _vehicles,
               "id",
               "vehicleMake",
-              // (value) => _selectedVehicle = value,
               (value) {
                 setState(() {
                   _selectedVehicle = value;
-                  _onVehicleSelected(value!); // ✅ This already updates _vehicleMaxCapacity and pre-fills capacity
+                  _onVehicleSelected(value!);
                 });
               },
-              showAvailabilityIcon: true, // ✅ Enable icon only for vehicles
+              showAvailabilityIcon: true,
+              showImage: true, // ✅ Show vehicle image
+              imageField: "vehicleImage", // ✅ Field to use
             ),
 
             // 📌 Purpose: Lets user select additional carpool participants from the family
