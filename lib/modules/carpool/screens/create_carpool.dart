@@ -450,6 +450,27 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     );
   }
 
+  /// 🧩 Builds a checkbox list tile for each participant
+  Widget _buildParticipantCheckbox(Map<String, dynamic> member) {
+    final memberId = member['id'];
+    final memberName = member['fullName'];
+
+    return CheckboxListTile(
+      title: Text(memberName),
+      value: _selectedParticipants.contains(memberId),
+      onChanged: (bool? value) {
+        setState(() {
+          if (value == true) {
+            _selectedParticipants.add(memberId);
+          } else {
+            _selectedParticipants.remove(memberId);
+          }
+        });
+      },
+    );
+  }
+
+
   /// 🔍 Checks if all required form fields are filled
   /// Used to enable/disable the Submit button dynamically
   bool _isFormComplete() {
@@ -542,6 +563,8 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             ),
 
             // 📌 Purpose: Lets user select additional carpool participants from the family
+            // 🔄 Loop through family members and build checkboxes
+            /// 🔄 Participant Section: Split into Children and Adults for clarity
             if (_selectedDriver != null) ...[
               SizedBox(height: 20),
               Align(
@@ -550,27 +573,30 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               ),
               SizedBox(height: 10),
 
-                // 🔄 Loop through family members and build checkboxes
-              Column(
-                children: _familyMembers.where((member) => member['id'] != _selectedDriver).map((member) {
-                  final memberId = member['id'];
-                  final memberName = member['fullName'];
+              /// 👶 CHILDREN PARTICIPANTS
+              if (_familyMembers.any((m) => m['isAdult'] == false && m['id'] != _selectedDriver)) ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text("Children", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.blue)),
+                ),
+                ..._familyMembers
+                    .where((m) => m['isAdult'] == false && m['id'] != _selectedDriver)
+                    .map((member) => _buildParticipantCheckbox(member))
+                    .toList(),
+                SizedBox(height: 10),
+              ],
 
-                  return CheckboxListTile(
-                    title: Text(memberName),
-                    value: _selectedParticipants.contains(memberId),
-                    onChanged: (bool? value) {
-                      setState(() {
-                        if (value == true) {
-                          _selectedParticipants.add(memberId);
-                        } else {
-                          _selectedParticipants.remove(memberId);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
+              /// 🧑‍🦱 ADULT PARTICIPANTS
+              if (_familyMembers.any((m) => m['isAdult'] == true && m['id'] != _selectedDriver)) ...[
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text("Adults", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.green)),
+                ),
+                ..._familyMembers
+                    .where((m) => m['isAdult'] == true && m['id'] != _selectedDriver)
+                    .map((member) => _buildParticipantCheckbox(member))
+                    .toList(),
+              ]
             ],
 
             // Carpool Capacity
