@@ -200,7 +200,41 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
                     ),
                     IconButton(
                       icon: Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deleteCarpool(carpool['carpoolId']),
+                      onPressed: () async {
+                        bool confirmed = await showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text("Confirm Deletion"),
+                              content: Text("Are you sure you want to delete this carpool? This action cannot be undone."),
+                              actions: [
+                                TextButton(
+                                  child: Text("Cancel"),
+                                  onPressed: () => Navigator.of(context).pop(false),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                  child: Text("Delete"),
+                                  onPressed: () => Navigator.of(context).pop(true),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+
+                        if (confirmed == true) {
+                          try {
+                            await _deleteCarpool(carpool['carpoolId']);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Carpool deleted successfully")),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Error deleting carpool: $e")),
+                            );
+                          }
+                        }
+                      },
                     ),
                   ],
                 ),

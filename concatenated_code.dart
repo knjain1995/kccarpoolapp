@@ -868,17 +868,23 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     if (_selectedDate != null && _selectedTime != null) {
       for (var vehicle in vehicleData) {
         bool available = await _firebaseFunctions.isVehicleAvailable(
-          vehicleId: vehicle['id'],
-          carpoolDate: Timestamp.fromDate(_selectedDate!),
-          carpoolTime: Timestamp.fromDate(DateTime(
-            _selectedDate!.year,
-            _selectedDate!.month,
-            _selectedDate!.day,
-            _selectedTime!.hour,
-            _selectedTime!.minute,
-          )),
-        );
-        vehicle['isAvailable'] = available; // 🔹 Tag vehicle as available/unavailable
+        vehicleId: vehicle['id'],
+        carpoolDate: Timestamp.fromDate(_selectedDate!),
+        carpoolTime: Timestamp.fromDate(DateTime(
+          _selectedDate!.year,
+          _selectedDate!.month,
+          _selectedDate!.day,
+          _selectedTime!.hour,
+          _selectedTime!.minute,
+        )),
+      );
+
+      // ✅ If in edit mode and this vehicle is the selected one, allow it
+      if (_isEditing && vehicle['id'] == _selectedVehicle) {
+        available = true;
+      }
+
+      vehicle['isAvailable'] = available; // 🔹 Tag vehicle as available/unavailable
       }
     } else {
       // If no time/date selected yet, assume all available
@@ -929,6 +935,10 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
           "driverLicense": userData["driverLicense"] ?? "",
         });
       }
+
+      if (_isEditing && _selectedVehicle != null) {
+        _onVehicleSelected(_selectedVehicle!); // ✅ Ensure vehicle max capacity is set for validation
+      }
     });
   }
 
@@ -946,7 +956,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     _selectedDriver = data['carpoolDriverId'];
 
     // 👨‍👩‍👧‍👦 Pre-fill list of participant IDs
+    // 👨‍👩‍👧‍👦 Pre-fill list of participant IDs (excluding driver)
     _carpoolParticipants = List<String>.from(data['carpoolParticipants'] ?? []);
+    _selectedParticipants = _carpoolParticipants
+      .where((id) => id != data['carpoolDriverId'])
+      .toList(); // ✅ Only non-driver participants go into the checkboxes
 
     // 🔄 Return trip toggles
     _hasReturnTrip = data['carpoolReturnTrip'] ?? false;
@@ -958,6 +972,28 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
     _selectedDate = carpoolDate.toDate();
     _selectedTime = TimeOfDay.fromDateTime(carpoolTime.toDate());
+
+    // 🔁 Trigger capacity and vehicle availability logic for the selected vehicle
+    if (_selectedVehicle != null) {
+      _onVehicleSelected(_selectedVehicle!);
+    }
+  }
+
+  // 🔄 Called when a vehicle is selected or prefilled to get max seating capacity
+  void _onVehicleSelected(String vehicleId) {
+    final vehicleData = _vehicles.firstWhere(
+      (v) => v['id'] == vehicleId,
+      orElse: () => {},
+    );
+
+    if (vehicleData.isNotEmpty && vehicleData['seatingCapacity'] != null) {
+      _vehicleMaxCapacity = vehicleData['seatingCapacity'];
+
+      // 🧠 If user hasn't entered a capacity yet, set it to vehicle max
+      if (_capacityController.text.isEmpty || int.tryParse(_capacityController.text) == null) {
+        _capacityController.text = _vehicleMaxCapacity.toString();
+      }
+    }
   }
 
   /// Opens a date picker & updates the selected date
@@ -1028,6 +1064,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     }
 
     // ✅ Safety net check before creation (even if dropdown disables vehicle)
+    // 🔓 Allow vehicle if it's already being used by the carpool being edited
     bool stillAvailable = await _firebaseFunctions.isVehicleAvailable(
       vehicleId: _selectedVehicle!,
       carpoolDate: Timestamp.fromDate(_selectedDate!),
@@ -1039,6 +1076,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
         _selectedTime!.minute,
       )),
     );
+
+    // 🔓 Allow vehicle if it's already being used by the carpool being edited
+    if (_isEditing && _selectedVehicle == _editingCarpool?['carpoolVehicleId']) {
+      stillAvailable = true;
+    }
 
     if (!stillAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Selected vehicle is no longer available.")));
@@ -1057,6 +1099,22 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 
     // 👥 Prepare carpoolParticipants (driver + selected participants)
     List<String> allParticipants = [_selectedDriver!, ..._selectedParticipants.toSet()];
+
+    // 🔍 Participant Count Validation
+    int enteredCapacity = int.tryParse(_capacityController.text.trim()) ?? 0;
+    int participantCount = _carpoolParticipants.length;
+
+    // Exclude driver from participant list (just in case)
+    if (_carpoolParticipants.contains(_selectedDriver)) {
+      participantCount -= 1;
+    }
+
+    if (participantCount > (enteredCapacity - 1)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Too many participants selected for the available seats!")),
+      );
+      return; // ❌ Stop submission
+    }
 
     try {
       if (_isEditing && _carpoolId != null) {
@@ -1225,21 +1283,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               "vehicleMake",
               // (value) => _selectedVehicle = value,
               (value) {
-              setState(() {
-                _selectedVehicle = value;
-                // 🧠 Fetch the selected vehicle's max seating capacity
-                Map<String, dynamic>? selectedVehicleData =
-                    _vehicles.firstWhere((v) => v['id'] == value, orElse: () => {});
-
-                if (selectedVehicleData != null && selectedVehicleData['seatingCapacity'] != null) {
-                  _vehicleMaxCapacity = selectedVehicleData['seatingCapacity'];
-                  _capacityController.text = _vehicleMaxCapacity.toString(); // ✅ Auto-fill capacity
-                } else {
-                  _vehicleMaxCapacity = null;
-                  _capacityController.text = "";
-                }
-              });
-            },
+                setState(() {
+                  _selectedVehicle = value;
+                  _onVehicleSelected(value!); // ✅ This already updates _vehicleMaxCapacity and pre-fills capacity
+                });
+              },
               showAvailabilityIcon: true, // ✅ Enable icon only for vehicles
             ),
 
