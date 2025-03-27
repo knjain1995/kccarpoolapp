@@ -446,6 +446,18 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     );
   }
 
+  /// 🔍 Checks if all required form fields are filled
+  /// Used to enable/disable the Submit button dynamically
+  bool _isFormComplete() {
+    return _carpoolNameController.text.isNotEmpty &&         // 📝 Carpool name filled
+          _routeStartController.text.isNotEmpty &&          // 🗺️ Start location filled
+          _routeEndController.text.isNotEmpty &&            // 📍 End location filled
+          _selectedDate != null &&                          // 📅 Date selected
+          _selectedTime != null &&                          // ⏰ Time selected
+          _selectedVehicle != null &&                       // 🚗 Vehicle selected
+          _selectedDriver != null &&                        // 👨‍✈️ Driver selected
+          _capacityController.text.isNotEmpty;              // 💺 Capacity entered
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -583,7 +595,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               ),
 
             SizedBox(height: 20),
-            ElevatedButton(onPressed: _createCarpool, child: Text(_isEditing ? "Update Carpool" : "Create Carpool")),
+            // ✅ Submit button becomes enabled only when all required fields are filled
+            ElevatedButton(
+              onPressed: _isFormComplete() ? _createCarpool : null, // 🔒 Disabled if form incomplete
+              child: Text(_isEditing ? "Update Carpool" : "Create Carpool"),
+            ),
           ],
         ),
       ),
