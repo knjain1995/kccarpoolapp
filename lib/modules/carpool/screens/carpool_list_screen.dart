@@ -312,11 +312,29 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
     return Scaffold(
       appBar: AppBar(title: Text("Your Carpools")),
       body: _carpools.isEmpty
-          ? Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: _carpools.length,
-              itemBuilder: (context, index) => _buildCarpoolCard(_carpools[index]),
+    ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.directions_car, size: 80, color: Colors.grey),
+            SizedBox(height: 20),
+            Text("No Carpools Yet!",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Text(
+              "Start by creating your first carpool.",
+              style: TextStyle(color: Colors.grey[600]),
             ),
+          ],
+        ),
+      )
+    : ListView.builder(
+        itemCount: _carpools.length,
+        itemBuilder: (context, index) {
+          return _buildCarpoolCard(_carpools[index]);
+        },
+      ),
+
     );
   }
 }
