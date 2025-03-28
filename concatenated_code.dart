@@ -1083,6 +1083,34 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     return true;
   }
 
+  /// 🔄 Resets all form fields (used by the Clear button)
+  void _resetCarpoolForm() {
+    setState(() {
+      _carpoolNameController.clear();
+      _routeStartController.clear();
+      _routeEndController.clear();
+      _capacityController.text = "4"; // Default capacity
+
+      _selectedDate = null;
+      _selectedTime = null;
+      _selectedVehicle = null;
+      _selectedDriver = null;
+      _vehicleMaxCapacity = null;
+      _selectedParticipants.clear();
+      _carpoolParticipants.clear();
+      _hasReturnTrip = false;
+      _stayOnLocation = false;
+
+      if (!_isEditing) {
+        _carpoolId = null;
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Form cleared.")),
+    );
+  }
+
   /// Handles form submission for creating a carpool
   void _createCarpool() async {
     if (!_validateCarpoolInputs()) {
@@ -1451,7 +1479,15 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
               onPressed: _isFormComplete() ? _createCarpool : null, // 🔒 Disabled if form incomplete
               child: Text(_isEditing ? "Update Carpool" : "Create Carpool"),
             ),
-          ],
+
+            // 🔘 Reset/Clear Button
+            TextButton.icon(
+              onPressed: _resetCarpoolForm,
+              icon: Icon(Icons.refresh),
+              label: Text("Clear Form"),
+              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            ),
+          ],          
         ),
       ),
     );

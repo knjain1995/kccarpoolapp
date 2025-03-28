@@ -94,19 +94,37 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔹 Top Row: Carpool Name + Status
+           // 🔹 Top Row: Carpool Name + Status + Optional Return Trip Tag
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(carpool['carpoolName'],
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(carpool['carpoolName'],
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+
+                    if (carpool['carpoolReturnTrip'] == true)
+                      Container(
+                        margin: EdgeInsets.only(top: 4),
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text("↩ Return Trip",
+                          style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+                        ),
+                      ),
+                  ],
+                ),
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade200,
+                    color: statusColor.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(carpool['carpoolStatus']),
+                  child: Text(status, style: TextStyle(color: statusColor)),
                 ),
               ],
             ),
