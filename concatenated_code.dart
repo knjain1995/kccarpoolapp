@@ -578,8 +578,21 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
 
   /// Deletes a carpool by ID
   Future<void> _deleteCarpool(String carpoolId) async {
-    await _firebaseFunctions.deleteCarpool(carpoolId);
-    _loadCarpools(); // 🔁 Refresh list after deletion
+    setState(() => _isLoading = true); // 🌀 Show loading during deletion
+
+    try {
+      await _firebaseFunctions.deleteCarpool(carpoolId);
+      await _loadCarpools(); // 🔁 Refresh list after deletion
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Carpool deleted successfully")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error deleting carpool: $e")),
+      );
+    } finally {
+      setState(() => _isLoading = false); // ✅ Stop spinner
+    }
   }
 
   /// 🔹 Builds each carpool card
@@ -866,11 +879,14 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
               ],
             ),
           )
-        : ListView.builder(
-            itemCount: _carpools.length,
-            itemBuilder: (context, index) {
-              return _buildCarpoolCard(_carpools[index]);
-        },
+        : RefreshIndicator(
+        onRefresh: _loadCarpools, // 🔁 Pull to refresh
+        child: ListView.builder(
+          itemCount: _carpools.length,
+          itemBuilder: (context, index) {
+            return _buildCarpoolCard(_carpools[index]);
+          },
+        ),
       ),
     );
   }
