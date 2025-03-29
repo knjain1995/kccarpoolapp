@@ -73,8 +73,14 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
     DateTime carpoolDate = (carpool['carpoolDate'] as Timestamp).toDate();
     DateTime carpoolTime = (carpool['carpoolTime'] as Timestamp).toDate();
 
-    String formattedDate = DateFormat('dd MMM yyyy').format(carpoolDate);
-    String formattedTime = DateFormat('hh:mm a').format(carpoolTime);
+    // 📅 Format: Mon, 28 Mar • 8:00 AM
+    String formattedDateTime = DateFormat('E, dd MMM • h:mm a').format(DateTime(
+      carpoolDate.year,
+      carpoolDate.month,
+      carpoolDate.day,
+      carpoolTime.hour,
+      carpoolTime.minute,
+    ));
 
     // 👇 Get total capacity and participants from the carpool document
     final int capacity = carpool['carpoolCapacity'] ?? 0;
@@ -168,11 +174,7 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
               children: [
                 Icon(Icons.calendar_today, size: 18, color: Colors.grey[700]),
                 SizedBox(width: 4),
-                Text("Date: $formattedDate,"),
-                SizedBox(width: 6),
-                Icon(Icons.access_time, size: 18, color: Colors.grey[700]),
-                SizedBox(width: 4),
-                Text("Time: $formattedTime"),
+                Text(formattedDateTime, style: TextStyle(fontSize: 14)),
               ],
             ),
 
@@ -311,30 +313,39 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Your Carpools")),
-      body: _carpools.isEmpty
-    ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.directions_car, size: 80, color: Colors.grey),
-            SizedBox(height: 20),
-            Text("No Carpools Yet!",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text(
-              "Start by creating your first carpool.",
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      )
-    : ListView.builder(
-        itemCount: _carpools.length,
-        itemBuilder: (context, index) {
-          return _buildCarpoolCard(_carpools[index]);
+      
+      // 🪄 Sticky Create Button (FloatingActionButton)
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.pushNamed(context, AppRoutes.createCarpool);
         },
+        child: Icon(Icons.add),
+        tooltip: "Create Carpool",
       ),
 
+      body: _carpools.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.directions_car, size: 80, color: Colors.grey),
+                  SizedBox(height: 20),
+                  Text("No Carpools Yet!",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 8),
+                  Text(
+                    "Start by creating your first carpool.",
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            )
+          : ListView.builder(
+              itemCount: _carpools.length,
+              itemBuilder: (context, index) {
+                return _buildCarpoolCard(_carpools[index]);
+              },
+            ),
     );
   }
 }
