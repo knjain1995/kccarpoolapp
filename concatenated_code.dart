@@ -524,6 +524,7 @@ class CarpoolListScreen extends StatefulWidget {
 class _CarpoolListScreenState extends State<CarpoolListScreen> {
   final FirebaseFunctions _firebaseFunctions = FirebaseFunctions();
   List<Map<String, dynamic>> _carpools = [];
+  bool _isLoading = false; // 🌀 Indicates whether we are fetching carpools
 
   @override
   void initState() {
@@ -533,6 +534,8 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
 
   /// Loads carpools created by the logged-in user
   Future<void> _loadCarpools() async {
+    setState(() => _isLoading = true); // 🌀 Start loading spinner
+
     List<Map<String, dynamic>> rawCarpools = await _firebaseFunctions.getCarpools();
 
     // 🔄 Fetch driver & vehicle info for each carpool
@@ -569,6 +572,7 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
 
     setState(() {
       _carpools = enrichedCarpools;
+      _isLoading = false; // ✅ Stop spinner after data is loaded
     });
   }
 
@@ -843,29 +847,31 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
         tooltip: "Create Carpool",
       ),
 
-      body: _carpools.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.directions_car, size: 80, color: Colors.grey),
-                  SizedBox(height: 20),
-                  Text("No Carpools Yet!",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 8),
-                  Text(
-                    "Start by creating your first carpool.",
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              itemCount: _carpools.length,
-              itemBuilder: (context, index) {
-                return _buildCarpoolCard(_carpools[index]);
-              },
+  body: _isLoading
+    ? Center(child: CircularProgressIndicator()) // 🌀 Show spinner
+    : _carpools.isEmpty
+        ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.directions_car, size: 80, color: Colors.grey),
+                SizedBox(height: 20),
+                Text("No Carpools Yet!",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                SizedBox(height: 8),
+                Text(
+                  "Start by creating your first carpool.",
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ],
             ),
+          )
+        : ListView.builder(
+            itemCount: _carpools.length,
+            itemBuilder: (context, index) {
+              return _buildCarpoolCard(_carpools[index]);
+        },
+      ),
     );
   }
 }
