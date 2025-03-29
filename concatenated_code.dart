@@ -583,8 +583,14 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
     DateTime carpoolDate = (carpool['carpoolDate'] as Timestamp).toDate();
     DateTime carpoolTime = (carpool['carpoolTime'] as Timestamp).toDate();
 
-    String formattedDate = DateFormat('dd MMM yyyy').format(carpoolDate);
-    String formattedTime = DateFormat('hh:mm a').format(carpoolTime);
+    // 📅 Format: Mon, 28 Mar • 8:00 AM
+    String formattedDateTime = DateFormat('E, dd MMM • h:mm a').format(DateTime(
+      carpoolDate.year,
+      carpoolDate.month,
+      carpoolDate.day,
+      carpoolTime.hour,
+      carpoolTime.minute,
+    ));
 
     // 👇 Get total capacity and participants from the carpool document
     final int capacity = carpool['carpoolCapacity'] ?? 0;
@@ -641,18 +647,28 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
             SizedBox(height: 8),
 
             // 🔹 Route Info
+            // 🔄 Better Route Formatting with Icons
+            // 🚗 Compact Route Display
             Row(
               children: [
-                Icon(Icons.location_on, size: 18, color: Colors.grey[700]),
-                SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    "${carpool['carpoolRouteStart']} → ${carpool['carpoolRouteEnd']}",
-                    style: TextStyle(fontSize: 14),
-                  ),
+                Icon(Icons.circle, size: 10, color: Colors.green),
+                SizedBox(width: 6),
+                Text(
+                  carpool['carpoolRouteStart'] ?? "",
+                  style: TextStyle(fontWeight: FontWeight.w500),
                 ),
+                SizedBox(width: 6),
+                Icon(Icons.arrow_forward, size: 16, color: Colors.black54),
+                SizedBox(width: 6),
+                Text(
+                  carpool['carpoolRouteEnd'] ?? "",
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                SizedBox(width: 6),
+                Icon(Icons.flag, size: 14, color: Colors.red),
               ],
             ),
+
 
             // 🔹 Driver Info
             Row(
@@ -678,11 +694,7 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
               children: [
                 Icon(Icons.calendar_today, size: 18, color: Colors.grey[700]),
                 SizedBox(width: 4),
-                Text("Date: $formattedDate,"),
-                SizedBox(width: 6),
-                Icon(Icons.access_time, size: 18, color: Colors.grey[700]),
-                SizedBox(width: 4),
-                Text("Time: $formattedTime"),
+                Text(formattedDateTime, style: TextStyle(fontSize: 14)),
               ],
             ),
 
