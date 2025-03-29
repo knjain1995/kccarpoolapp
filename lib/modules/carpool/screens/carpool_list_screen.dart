@@ -137,18 +137,28 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
             SizedBox(height: 8),
 
             // 🔹 Route Info
+            // 🔄 Better Route Formatting with Icons
+            // 🚗 Compact Route Display
             Row(
               children: [
-                Icon(Icons.location_on, size: 18, color: Colors.grey[700]),
-                SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    "${carpool['carpoolRouteStart']} → ${carpool['carpoolRouteEnd']}",
-                    style: TextStyle(fontSize: 14),
-                  ),
+                Icon(Icons.circle, size: 10, color: Colors.green),
+                SizedBox(width: 6),
+                Text(
+                  carpool['carpoolRouteStart'] ?? "",
+                  style: TextStyle(fontWeight: FontWeight.w500),
                 ),
+                SizedBox(width: 6),
+                Icon(Icons.arrow_forward, size: 16, color: Colors.black54),
+                SizedBox(width: 6),
+                Text(
+                  carpool['carpoolRouteEnd'] ?? "",
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                SizedBox(width: 6),
+                Icon(Icons.flag, size: 14, color: Colors.red),
               ],
             ),
+
 
             // 🔹 Driver Info
             Row(
