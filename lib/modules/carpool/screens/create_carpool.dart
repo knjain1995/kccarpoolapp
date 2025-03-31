@@ -151,6 +151,11 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
         });
       }
 
+      // 👇 Smart Default: Auto-select the only driver if only one exists
+      if (_adults.length == 1) {
+        _selectedDriver = _adults.first["id"];
+      }
+
       if (_isEditing && _selectedVehicle != null) {
         _onVehicleSelected(_selectedVehicle!); // ✅ Ensure vehicle max capacity is set for validation
       }
