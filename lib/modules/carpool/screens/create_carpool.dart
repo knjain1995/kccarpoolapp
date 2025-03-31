@@ -235,11 +235,25 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     }
   }
 
-  /// Opens a time picker & updates the selected time
+  /// 📅 Opens a time picker & updates the selected time
   Future<void> _pickTime() async {
+    // 🕒 Get the current time
+    TimeOfDay now = TimeOfDay.now();
+
+    // 🔄 Round minutes to nearest 15
+    int roundedMinutes = (now.minute / 15).round() * 15;
+
+    if (roundedMinutes == 60) {
+      // ➕ If 60, roll over to next hour
+      now = TimeOfDay(hour: (now.hour + 1) % 24, minute: 0);
+    } else {
+      now = TimeOfDay(hour: now.hour, minute: roundedMinutes);
+    }
+
+    // 📅 Show the time picker
     TimeOfDay? pickedTime = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      initialTime: now, // 🧠 Use rounded time here
     );
 
     if (pickedTime != null) {
@@ -247,7 +261,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
         _selectedTime = pickedTime;
       });
 
-      // 🔄 Re-fetch vehicles to update their availability
+      // 🔄 Re-fetch vehicles to update availability
       await _fetchUserData();
     }
   }
