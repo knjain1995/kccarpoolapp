@@ -208,36 +208,59 @@ class FirebaseFunctions {
 
 
   /// Saves user verification data in Firestore
+  /// Saves verification data for the account owner (primary user),
+  /// creates a new 'users' document, and initializes the 'families' collection.
+  /// This is called after registration and identity verification.
   Future<void> saveVerificationData({
-    required String profilePhoto,
-    required String govId,
-    required String? driverLicense,
+    required String profilePhoto,       // Local path to profile photo
+    required String govId,              // Local path to government ID
+    required String? driverLicense,     // Optional local path to driver’s license
     required String address,
     required String relationToChild,
   }) async {
-    String userId = FirebaseAuth.instance.currentUser!.uid;
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
+    final FirebaseAuth auth = FirebaseAuth.instance;
 
-    Map<String, dynamic> verificationData = {
-      "profilePhoto": profilePhoto,
-      "driverLicense": driverLicense ?? "",
-      "govId": govId,
-      "address": address.trim(),
-      "relationToChild": relationToChild,
-      "emailVerified": true, // Placeholder for now
-      "phoneVerified": true, // Placeholder for now
+    final String userId = auth.currentUser!.uid;
+
+    // ✅ STEP 1: Create a new document in the 'families' collection.
+    // This family document represents the user's household and will later hold more members.
+    final DocumentReference familyDoc = await firestore.collection('families').add({
+      'primaryUserId': userId,             // The account owner (admin of the family)
+      'memberUserIds': [userId],           // Start with just the owner; others will be added later
+      'createdAt': Timestamp.now(),        // Metadata
+    });
+
+    final String familyId = familyDoc.id; // We’ll use this to link the user to their family
+
+    // ✅ STEP 2: Prepare the user's Firestore data with all fields
+    final Map<String, dynamic> userData = {
+      // 'fullName': auth.currentUser?.displayName ?? '',
+      'email': auth.currentUser?.email ?? '',
+      // 'phoneNumber': auth.currentUser?.phoneNumber ?? '',
+      'address': address.trim(),
+      'relationToChild': relationToChild,
+      'profilePhoto': profilePhoto,         // Stored as local file path
+      'govId': govId,                       // Local file path
+      'driverLicense': driverLicense ?? '', // Optional local file path
+      'emailVerified': true,                // Assume true if OTP verified
+      'phoneVerified': true,                // Assume true if OTP verified
+      'timestamp': Timestamp.now(),
+
+      // 🔥 NEW STRUCTURE FIELDS
+      'isPrimaryUser': true,                // Marks this as the family account owner
+      'isAdult': true,                      // All account owners are adults
+      'familyId': familyId,                 // Links this user to their family group
     };
 
-    try {
-      await FirebaseFirestore.instance.collection("users").doc(userId).set(
-        verificationData,
-        SetOptions(merge: true), // ✅ Ensures previous data is not erased
-      );
-      print("Verification data saved successfully!");
-    } catch (e) {
-      print("Error saving verification data: $e");
-    }
-  }
+    // ✅ STEP 3: Save the user to 'users/{uid}' in Firestore
+    await firestore.collection('users').doc(userId).set(
+      userData,
+      SetOptions(merge: true), // Keep any previously stored values
+    );
 
+    print('✅ User and family records created successfully.');
+  }
 
   /// Adds a new family member (adult or child) under the logged-in user
   Future<void> addFamilyMember({
