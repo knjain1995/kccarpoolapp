@@ -133,25 +133,46 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
         relationToChild: _isAdult ? _relationToChild! : null,
       );
     } else {
-        await _firebaseFunctions.addFamilyMember(
+      await _firebaseFunctions.addFamilyMemberToUsers(
         fullName: _nameController.text.trim(),
-        email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-        phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
         isAdult: _isAdult,
-        dateOfBirth: _isAdult ? null : _selectedDateOfBirth, // 🔹 Store as timestamp in Firestore
-        // dateOfBirth: _isAdult ? null : _dateOfBirthController.text.trim(),
-        profilePhoto: _profilePhoto!,
-        govId: _govId!,
-        schoolId: _isAdult ? null : _schoolId ?? "",
-        schoolName: _isAdult ? null : _schoolNameController.text.trim(),
-        schoolIdNo: _isAdult ? null : _schoolIdNoController.text.trim(),
-        grade: _isAdult ? null : _gradeController.text.trim(),
-        driverLicense: _isAdult ? _driverLicense ?? "" : null,
+        relationToChild: _isAdult ? (_relationToChild ?? "") : "",
+        profilePhotoPath: _profilePhoto!,
+        govIdPath: _govId!,
+        email: _emailController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        emailVerified: false,                              // Placeholder
+        phoneVerified: false,                              // Placeholder
+        driverLicensePath: _isAdult ? _driverLicense : null,
         address: _addressController.text.trim(),
-        gender: _isAdult ? null : (_gender ?? ""),
-        // relationToChild: _isAdult ? _relationToChild! : null, // 🔹 Removed for Children
-        relationToChild: _isAdult ? _relationToChild! : null, // 🔹 Removed for Children
+
+        // Child fields (only used if !isAdult)
+        dateOfBirth: !_isAdult ? _dateOfBirthController.text.trim() : null,
+        gender: !_isAdult ? _gender : null,
+        grade: !_isAdult ? _gradeController.text.trim() : null,
+        schoolName: !_isAdult ? _schoolNameController.text.trim() : null,
+        schoolIdNo: !_isAdult ? _schoolIdNoController.text.trim() : null,
+        schoolIdImagePath: !_isAdult ? _schoolId : null,
       );
+//   await _firebaseFunctions.addFamilyMember(
+      //   fullName: _nameController.text.trim(),
+      //   email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+      //   phoneNumber: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+      //   isAdult: _isAdult,
+      //   dateOfBirth: _isAdult ? null : _selectedDateOfBirth, // 🔹 Store as timestamp in Firestore
+      //   // dateOfBirth: _isAdult ? null : _dateOfBirthController.text.trim(),
+      //   profilePhoto: _profilePhoto!,
+      //   govId: _govId!,
+      //   schoolId: _isAdult ? null : _schoolId ?? "",
+      //   schoolName: _isAdult ? null : _schoolNameController.text.trim(),
+      //   schoolIdNo: _isAdult ? null : _schoolIdNoController.text.trim(),
+      //   grade: _isAdult ? null : _gradeController.text.trim(),
+      //   driverLicense: _isAdult ? _driverLicense ?? "" : null,
+      //   address: _addressController.text.trim(),
+      //   gender: _isAdult ? null : (_gender ?? ""),
+      //   // relationToChild: _isAdult ? _relationToChild! : null, // 🔹 Removed for Children
+      //   relationToChild: _isAdult ? _relationToChild! : null, // 🔹 Removed for Children
+      // );
     }
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Family Member Saved!")));
     // _clearFields();

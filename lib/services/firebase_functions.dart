@@ -61,23 +61,6 @@ class FirebaseFunctions {
     }
     return null;
   }
-  // Future<Map<String, dynamic>?> getUserData() async {
-  //   User? user = _auth.currentUser;
-  //   if (user == null) return null; // No user logged in
-
-  //   try {
-  //     DocumentSnapshot userDoc = await _firestore.collection("users").doc(user.uid).get();
-
-  //     if (userDoc.exists) {
-  //       return userDoc.data() as Map<String, dynamic>; // Return user data
-  //     } else {
-  //       return null; // No data found
-  //     }
-  //   } catch (e) {
-  //     print("Error fetching user data: $e");
-  //     return null;
-  //   }
-  // }
 
   /// Updates user profile data in Firestore
   Future<void> updateUserProfile({
@@ -243,8 +226,8 @@ class FirebaseFunctions {
       'profilePhoto': profilePhoto,         // Stored as local file path
       'govId': govId,                       // Local file path
       'driverLicense': driverLicense ?? '', // Optional local file path
-      'emailVerified': true,                // Assume true if OTP verified
-      'phoneVerified': true,                // Assume true if OTP verified
+      'emailVerified': false,                // Assume true if OTP verified
+      'phoneVerified': false,                // Assume true if OTP verified
       'timestamp': Timestamp.now(),
 
       // 🔥 NEW STRUCTURE FIELDS
@@ -262,54 +245,146 @@ class FirebaseFunctions {
     print('✅ User and family records created successfully.');
   }
 
-  /// Adds a new family member (adult or child) under the logged-in user
-  Future<void> addFamilyMember({
+  /// Adds a new family member to the global 'users' collection (flat structure).
+  /// This replaces the older 'users/{uid}/family' subcollection method.
+  /// It supports both adults and children, and uses the current user's familyId.
+  Future<void> addFamilyMemberToUsers({
     required String fullName,
-    required String? email,
-    required String? phoneNumber,
-    required bool isAdult, // Differentiates between Adult & Child
-    DateTime? dateOfBirth, // Only for children
-    required String profilePhoto,
-    required String govId,
-    String? schoolId, // Only for children
-    String? schoolName, // Only for children
-    String? schoolIdNo, // Only for children
-    String? grade, // Only for children
-    String? driverLicense, // Only for adults (Optional)
+    required bool isAdult,
+    required String relationToChild,
     required String address,
-    String? gender, // Only for children
-    String? relationToChild,
+    required String profilePhotoPath,
+    required String govIdPath,
+    String? email,
+    String? phoneNumber,
+    bool emailVerified = false,
+    bool phoneVerified = false,
+    String? driverLicensePath, // Optional - for adults only
+
+    // Fields specific to children
+    String? dateOfBirth,
+    String? gender,
+    String? grade,
+    String? schoolName,
+    String? schoolIdNo,
+    String? schoolIdImagePath,
   }) async {
-    String? userId = getCurrentUserId();
-    if (userId == null) throw Exception("No authenticated user found.");
+    final FirebaseAuth auth = FirebaseAuth.instance;
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-    try {
-      await _firestore.collection("users").doc(userId).collection("family").add({
-        "fullName": fullName,
-        "email": email ?? "",
-        "phoneNumber": phoneNumber ?? "",
-        "isAdult": isAdult,
-        "dateOfBirth": isAdult ? null : Timestamp.fromDate(dateOfBirth!),
-        // "dateOfBirth": isAdult ? null : Timestamp.fromDate(DateTime.parse(dateOfBirth!)),
-        "profilePhoto": profilePhoto,
-        "govId": govId,
-        "driverLicense": isAdult ? driverLicense ?? "" : null,
-        "schoolId": isAdult ? null : schoolId ?? "",
-        "schoolName": isAdult ? null : schoolName ?? "",
-        "schoolIdNo": isAdult ? null : schoolIdNo ?? "",
-        "grade": isAdult ? null : grade ?? "",
-        "address": address,
-        "gender": isAdult ? null : gender,
-        "relationToChild": relationToChild,
-        "timestamp": FieldValue.serverTimestamp(),
-      });
+    final String accountOwnerId = auth.currentUser!.uid;
 
-      print("Family member added successfully.");
-    } catch (e) {
-      print("Error adding family member: $e");
-      throw Exception("Failed to add family member.");
+    // 1️⃣ Get the current user's document to access their familyId
+    final DocumentSnapshot userSnapshot =
+        await firestore.collection("users").doc(accountOwnerId).get();
+
+    if (!userSnapshot.exists) {
+      throw Exception("User document does not exist.");
     }
+
+    // ✅ Safely cast the snapshot's data to a Map so we can check keys
+    final userData = userSnapshot.data() as Map<String, dynamic>;
+
+    if (!userData.containsKey("familyId")) {
+      throw Exception("Missing familyId in user document.");
+    }
+
+    final String familyId = userData["familyId"];
+
+    // 2️⃣ Prepare base data common to all family members
+    Map<String, dynamic> memberData = {
+      "fullName": fullName,
+      "email": email ?? '',
+      "phoneNumber": phoneNumber ?? '',
+      "emailVerified": emailVerified,
+      "phoneVerified": phoneVerified,
+      "isAdult": isAdult,
+      "isPrimaryUser": false,              // All added family members are not the account owner
+      "familyId": familyId,                // Same family as the account owner
+      "createdBy": accountOwnerId,         // Who added this member
+      "relationToChild": relationToChild,
+      "address": address,
+      "profilePhoto": profilePhotoPath,
+      "govId": govIdPath,
+      "driverLicense": driverLicensePath ?? '',
+      "timestamp": Timestamp.now(),
+    };
+
+    // 3️⃣ Add child-specific fields if the member is a child
+    if (!isAdult) {
+      memberData.addAll({
+        "dateOfBirth": dateOfBirth ?? '',
+        "gender": gender ?? '',
+        "grade": grade ?? '',
+        "schoolName": schoolName ?? '',
+        "schoolIdNo": schoolIdNo ?? '',
+        "schoolId": schoolIdImagePath ?? '',
+      });
+    }
+
+    // await firestore.collection("users").add(memberData);
+    // 4️⃣ Add the member to the top-level 'users' collection
+    final DocumentReference memberRef =
+    await firestore.collection("users").add(memberData);
+
+    final String newMemberId = memberRef.id;
+
+    // Append this member ID to the family's memberUserIds list
+    await firestore.collection("families").doc(familyId).update({
+      "memberUserIds": FieldValue.arrayUnion([newMemberId])
+    });
+
+    print('✅ Family member added to users collection (flat model).');
   }
+
+  // /// Adds a new family member (adult or child) under the logged-in user
+  // Future<void> addFamilyMember({
+  //   required String fullName,
+  //   required String? email,
+  //   required String? phoneNumber,
+  //   required bool isAdult, // Differentiates between Adult & Child
+  //   DateTime? dateOfBirth, // Only for children
+  //   required String profilePhoto,
+  //   required String govId,
+  //   String? schoolId, // Only for children
+  //   String? schoolName, // Only for children
+  //   String? schoolIdNo, // Only for children
+  //   String? grade, // Only for children
+  //   String? driverLicense, // Only for adults (Optional)
+  //   required String address,
+  //   String? gender, // Only for children
+  //   String? relationToChild,
+  // }) async {
+  //   String? userId = getCurrentUserId();
+  //   if (userId == null) throw Exception("No authenticated user found.");
+
+  //   try {
+  //     await _firestore.collection("users").doc(userId).collection("family").add({
+  //       "fullName": fullName,
+  //       "email": email ?? "",
+  //       "phoneNumber": phoneNumber ?? "",
+  //       "isAdult": isAdult,
+  //       "dateOfBirth": isAdult ? null : Timestamp.fromDate(dateOfBirth!),
+  //       // "dateOfBirth": isAdult ? null : Timestamp.fromDate(DateTime.parse(dateOfBirth!)),
+  //       "profilePhoto": profilePhoto,
+  //       "govId": govId,
+  //       "driverLicense": isAdult ? driverLicense ?? "" : null,
+  //       "schoolId": isAdult ? null : schoolId ?? "",
+  //       "schoolName": isAdult ? null : schoolName ?? "",
+  //       "schoolIdNo": isAdult ? null : schoolIdNo ?? "",
+  //       "grade": isAdult ? null : grade ?? "",
+  //       "address": address,
+  //       "gender": isAdult ? null : gender,
+  //       "relationToChild": relationToChild,
+  //       "timestamp": FieldValue.serverTimestamp(),
+  //     });
+
+  //     print("Family member added successfully.");
+  //   } catch (e) {
+  //     print("Error adding family member: $e");
+  //     throw Exception("Failed to add family member.");
+  //   }
+  // }
 
   /// Fetches all family members of the logged-in user from Firestore
   Future<List<Map<String, dynamic>>> getFamilyMembers() async {
