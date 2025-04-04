@@ -337,54 +337,55 @@ class FirebaseFunctions {
     print('✅ Family member added to users collection (flat model).');
   }
 
-  // /// Adds a new family member (adult or child) under the logged-in user
-  // Future<void> addFamilyMember({
-  //   required String fullName,
-  //   required String? email,
-  //   required String? phoneNumber,
-  //   required bool isAdult, // Differentiates between Adult & Child
-  //   DateTime? dateOfBirth, // Only for children
-  //   required String profilePhoto,
-  //   required String govId,
-  //   String? schoolId, // Only for children
-  //   String? schoolName, // Only for children
-  //   String? schoolIdNo, // Only for children
-  //   String? grade, // Only for children
-  //   String? driverLicense, // Only for adults (Optional)
-  //   required String address,
-  //   String? gender, // Only for children
-  //   String? relationToChild,
-  // }) async {
-  //   String? userId = getCurrentUserId();
-  //   if (userId == null) throw Exception("No authenticated user found.");
+  /// Fetches family members using the 'memberUserIds' array in families/{familyId}.
+  /// Skips the primary user and returns only the rest of the family.
+  Future<List<Map<String, dynamic>>> getFamilyMembersByIds() async {
+    final FirebaseAuth auth = FirebaseAuth.instance;
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  //   try {
-  //     await _firestore.collection("users").doc(userId).collection("family").add({
-  //       "fullName": fullName,
-  //       "email": email ?? "",
-  //       "phoneNumber": phoneNumber ?? "",
-  //       "isAdult": isAdult,
-  //       "dateOfBirth": isAdult ? null : Timestamp.fromDate(dateOfBirth!),
-  //       // "dateOfBirth": isAdult ? null : Timestamp.fromDate(DateTime.parse(dateOfBirth!)),
-  //       "profilePhoto": profilePhoto,
-  //       "govId": govId,
-  //       "driverLicense": isAdult ? driverLicense ?? "" : null,
-  //       "schoolId": isAdult ? null : schoolId ?? "",
-  //       "schoolName": isAdult ? null : schoolName ?? "",
-  //       "schoolIdNo": isAdult ? null : schoolIdNo ?? "",
-  //       "grade": isAdult ? null : grade ?? "",
-  //       "address": address,
-  //       "gender": isAdult ? null : gender,
-  //       "relationToChild": relationToChild,
-  //       "timestamp": FieldValue.serverTimestamp(),
-  //     });
+    final String uid = auth.currentUser!.uid;
 
-  //     print("Family member added successfully.");
-  //   } catch (e) {
-  //     print("Error adding family member: $e");
-  //     throw Exception("Failed to add family member.");
-  //   }
-  // }
+    // 1️⃣ Get the current user's document
+    final DocumentSnapshot userDoc =
+        await firestore.collection("users").doc(uid).get();
+
+    if (!userDoc.exists) {
+      throw Exception("Current user document not found.");
+    }
+
+    final userData = userDoc.data() as Map<String, dynamic>;
+    final String familyId = userData["familyId"];
+
+    // 2️⃣ Get the family's memberUserIds list
+    final DocumentSnapshot familyDoc =
+        await firestore.collection("families").doc(familyId).get();
+
+    if (!familyDoc.exists) {
+      throw Exception("Family document not found.");
+    }
+
+    final familyData = familyDoc.data() as Map<String, dynamic>;
+    final List<dynamic> memberIds = familyData["memberUserIds"] ?? [];
+
+    // 3️⃣ Fetch each user's full profile by ID
+    List<Map<String, dynamic>> familyMembers = [];
+
+    for (String memberId in memberIds) {
+      if (memberId == uid) continue; // Skip the primary user
+
+      final DocumentSnapshot memberDoc =
+          await firestore.collection("users").doc(memberId).get();
+
+      if (memberDoc.exists) {
+        final data = memberDoc.data() as Map<String, dynamic>;
+        data['id'] = memberDoc.id;
+        familyMembers.add(data);
+      }
+    }
+
+    return familyMembers;
+  }
+
 
   /// Fetches all family members of the logged-in user from Firestore
   Future<List<Map<String, dynamic>>> getFamilyMembers() async {
