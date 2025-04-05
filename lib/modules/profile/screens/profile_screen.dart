@@ -99,8 +99,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   /// Fetches family members from Firestore and separates them into Adults and Children
+  /// Loads family members using flat user model & families/{familyId}/memberUserIds
   Future<void> _loadFamilyMembers() async {
-    List<Map<String, dynamic>> familyData = await _firebaseFunctions.getFamilyMembers();
+    List<Map<String, dynamic>> familyData =
+        await _firebaseFunctions.getFamilyMembersByIds(); // 🔄 New flat model
 
     setState(() {
       _adults = familyData.where((member) => member['isAdult'] == true).toList();
@@ -108,6 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isLoading = false;
     });
   }
+
 
   /// Deletes a family member after confirmation
   void _deleteFamilyMember(String memberId) async {

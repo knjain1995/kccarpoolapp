@@ -313,7 +313,9 @@ class FirebaseFunctions {
     // 3️⃣ Add child-specific fields if the member is a child
     if (!isAdult) {
       memberData.addAll({
-        "dateOfBirth": dateOfBirth ?? '',
+        "dateOfBirth": (dateOfBirth != null && dateOfBirth.isNotEmpty)
+          ? Timestamp.fromDate(DateTime.parse(dateOfBirth))
+          : null,
         "gender": gender ?? '',
         "grade": grade ?? '',
         "schoolName": schoolName ?? '',
