@@ -340,19 +340,19 @@ class FirebaseFunctions {
   }
 
   /// Fetches family members using the 'memberUserIds' array in families/{familyId}.
-  /// Skips the primary user and returns only the rest of the family.
-  Future<List<Map<String, dynamic>>> getFamilyMembersByIds() async {
+  /// If [includePrimaryUser] is false, the account owner will be excluded.
+  Future<List<Map<String, dynamic>>> getFamilyMembersByIds({bool includePrimaryUser = true}) async {
     final FirebaseAuth auth = FirebaseAuth.instance;
     final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
     final String uid = auth.currentUser!.uid;
 
-    // 1️⃣ Get the current user's document
+    // 1️⃣ Get the current user's document to retrieve familyId
     final DocumentSnapshot userDoc =
         await firestore.collection("users").doc(uid).get();
 
     if (!userDoc.exists) {
-      throw Exception("Current user document not found.");
+      throw Exception("User document not found.");
     }
 
     final userData = userDoc.data() as Map<String, dynamic>;
@@ -369,24 +369,28 @@ class FirebaseFunctions {
     final familyData = familyDoc.data() as Map<String, dynamic>;
     final List<dynamic> memberIds = familyData["memberUserIds"] ?? [];
 
-    // 3️⃣ Fetch each user's full profile by ID
     List<Map<String, dynamic>> familyMembers = [];
 
     for (String memberId in memberIds) {
-      // if (memberId == uid) continue; // Skip the primary user
-
       final DocumentSnapshot memberDoc =
           await firestore.collection("users").doc(memberId).get();
 
       if (memberDoc.exists) {
         final data = memberDoc.data() as Map<String, dynamic>;
         data['id'] = memberDoc.id;
+
+        // 🔹 Exclude primary user if requested
+        if (!includePrimaryUser && data["isPrimaryUser"] == true) {
+          continue;
+        }
+
         familyMembers.add(data);
       }
     }
 
     return familyMembers;
   }
+
 
 
   /// Fetches all family members of the logged-in user from Firestore
@@ -743,47 +747,69 @@ class FirebaseFunctions {
     }
   }
 
-  /// Fetches driver details by ID from either users or family subcollection
-  /// Fetches driver info by ID from either users or family subcollection of the carpool owner
+  /// Fetches driver info by ID from the flat `users` collection only.
   Future<Map<String, dynamic>?> getDriverById({
     required String driverId,
-    required String carpoolOwnerId, // Always the account owner
   }) async {
     try {
-      final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection("users").doc(driverId).get();
 
-      // Case 1: If the driverId is the same as the account owner's ID
-      if (driverId == carpoolOwnerId) {
-        DocumentSnapshot userDoc =
-            await _firestore.collection("users").doc(driverId).get();
-        if (userDoc.exists) {
-          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-          userData["id"] = driverId;
-          return userData;
-        }
+      if (userDoc.exists) {
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        userData["id"] = userDoc.id;
+        return userData;
       }
 
-      // Case 2: If the driverId is in the family subcollection of the carpool owner
-      DocumentSnapshot familyDoc = await _firestore
-          .collection("users")
-          .doc(carpoolOwnerId)
-          .collection("family")
-          .doc(driverId)
-          .get();
-
-      if (familyDoc.exists) {
-        Map<String, dynamic> familyData =
-            familyDoc.data() as Map<String, dynamic>;
-        familyData["id"] = driverId;
-        return familyData;
-      }
-
-      return null; // Not found
+      return null;
     } catch (e) {
       print("Error fetching driver: $e");
       return null;
     }
   }
+
+
+  // /// Fetches driver details by ID from either users or family subcollection
+  // /// Fetches driver info by ID from either users or family subcollection of the carpool owner
+  // Future<Map<String, dynamic>?> getDriverById({
+  //   required String driverId,
+  //   required String carpoolOwnerId, // Always the account owner
+  // }) async {
+  //   try {
+  //     final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  //     // Case 1: If the driverId is the same as the account owner's ID
+  //     if (driverId == carpoolOwnerId) {
+  //       DocumentSnapshot userDoc =
+  //           await _firestore.collection("users").doc(driverId).get();
+  //       if (userDoc.exists) {
+  //         Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+  //         userData["id"] = driverId;
+  //         return userData;
+  //       }
+  //     }
+
+  //     // Case 2: If the driverId is in the family subcollection of the carpool owner
+  //     DocumentSnapshot familyDoc = await _firestore
+  //         .collection("users")
+  //         .doc(carpoolOwnerId)
+  //         .collection("family")
+  //         .doc(driverId)
+  //         .get();
+
+  //     if (familyDoc.exists) {
+  //       Map<String, dynamic> familyData =
+  //           familyDoc.data() as Map<String, dynamic>;
+  //       familyData["id"] = driverId;
+  //       return familyData;
+  //     }
+
+  //     return null; // Not found
+  //   } catch (e) {
+  //     print("Error fetching driver: $e");
+  //     return null;
+  //   }
+  // }
 
   /// 🔍 Fetches a user's document from the `users` collection using their user ID
   Future<Map<String, dynamic>?> getUserById(String userId) async {
@@ -809,50 +835,79 @@ class FirebaseFunctions {
     }
   }
 
-
-  /// 🔹 Resolves participant details (excluding driver) for a carpool
+  /// Fetches all participants (excluding driver) from the flat users collection.
   Future<List<Map<String, dynamic>>> getCarpoolParticipants({
-    required String carpoolOwnerId,
     required String carpoolDriverId,
     required List<String> participantIds,
   }) async {
     List<Map<String, dynamic>> resolvedParticipants = [];
 
-    try {
-      for (String participantId in participantIds) {
-        // 🚫 Skip the driver
-        if (participantId == carpoolDriverId) continue;
+    for (String participantId in participantIds) {
+      if (participantId == carpoolDriverId) continue; // 🚫 Skip the driver
 
-        Map<String, dynamic>? participantData;
+      try {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection("users")
+            .doc(participantId)
+            .get();
 
-        if (participantId == carpoolOwnerId) {
-          // ✅ Reuse getUserById for account owner
-          participantData = await getUserById(participantId);
-        } else {
-          // ✅ Participant is a family member
-          DocumentSnapshot doc = await _firestore
-              .collection("users")
-              .doc(carpoolOwnerId)
-              .collection("family")
-              .doc(participantId)
-              .get();
-          if (doc.exists) {
-            participantData = doc.data() as Map<String, dynamic>;
-          }
+        if (userDoc.exists) {
+          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+          userData["id"] = userDoc.id;
+          resolvedParticipants.add(userData);
         }
-
-        if (participantData != null) {
-          participantData["id"] = participantId;
-          resolvedParticipants.add(participantData);
-        }
+      } catch (e) {
+        print("Error fetching participant $participantId: $e");
       }
-
-      return resolvedParticipants;
-    } catch (e) {
-      print("❌ Error resolving carpool participants: $e");
-      return [];
     }
+
+    return resolvedParticipants;
   }
+
+
+  // /// 🔹 Resolves participant details (excluding driver) for a carpool
+  // Future<List<Map<String, dynamic>>> getCarpoolParticipants({
+  //   required String carpoolOwnerId,
+  //   required String carpoolDriverId,
+  //   required List<String> participantIds,
+  // }) async {
+  //   List<Map<String, dynamic>> resolvedParticipants = [];
+
+  //   try {
+  //     for (String participantId in participantIds) {
+  //       // 🚫 Skip the driver
+  //       if (participantId == carpoolDriverId) continue;
+
+  //       Map<String, dynamic>? participantData;
+
+  //       if (participantId == carpoolOwnerId) {
+  //         // ✅ Reuse getUserById for account owner
+  //         participantData = await getUserById(participantId);
+  //       } else {
+  //         // ✅ Participant is a family member
+  //         DocumentSnapshot doc = await _firestore
+  //             .collection("users")
+  //             .doc(carpoolOwnerId)
+  //             .collection("family")
+  //             .doc(participantId)
+  //             .get();
+  //         if (doc.exists) {
+  //           participantData = doc.data() as Map<String, dynamic>;
+  //         }
+  //       }
+
+  //       if (participantData != null) {
+  //         participantData["id"] = participantId;
+  //         resolvedParticipants.add(participantData);
+  //       }
+  //     }
+
+  //     return resolvedParticipants;
+  //   } catch (e) {
+  //     print("❌ Error resolving carpool participants: $e");
+  //     return [];
+  //   }
+  // }
 
 
 

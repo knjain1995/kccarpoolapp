@@ -102,7 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Loads family members using flat user model & families/{familyId}/memberUserIds
   Future<void> _loadFamilyMembers() async {
     List<Map<String, dynamic>> familyData =
-        await _firebaseFunctions.getFamilyMembersByIds(); // 🔄 New flat model
+        await _firebaseFunctions.getFamilyMembersByIds(includePrimaryUser: false); // 🔄 New flat model
 
     setState(() {
       _adults = familyData.where((member) => member['isAdult'] == true).toList();

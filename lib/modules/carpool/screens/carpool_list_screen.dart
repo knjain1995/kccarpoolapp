@@ -33,7 +33,6 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
       // 🔸 Fetch Driver Info
       final driverData = await _firebaseFunctions.getDriverById(
         driverId: carpool["carpoolDriverId"],
-        carpoolOwnerId: carpool["carpoolOwnerId"],
       );
       carpool['driverName'] = driverData?['fullName'] ?? "Unknown";
       carpool['driverPhoto'] = driverData?['profilePhoto'];
@@ -49,7 +48,6 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
       final List<String> participantIds = List<String>.from(carpool['carpoolParticipants'] ?? []);
       final List<Map<String, dynamic>> resolvedParticipants =
           await _firebaseFunctions.getCarpoolParticipants(
-        carpoolOwnerId: carpool['carpoolOwnerId'],
         carpoolDriverId: carpool['carpoolDriverId'],
         participantIds: participantIds,
       );
