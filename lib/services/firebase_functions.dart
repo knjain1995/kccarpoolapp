@@ -373,7 +373,7 @@ class FirebaseFunctions {
     List<Map<String, dynamic>> familyMembers = [];
 
     for (String memberId in memberIds) {
-      if (memberId == uid) continue; // Skip the primary user
+      // if (memberId == uid) continue; // Skip the primary user
 
       final DocumentSnapshot memberDoc =
           await firestore.collection("users").doc(memberId).get();

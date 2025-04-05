@@ -69,98 +69,170 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       _fetchUserData(); // 🔄 Always fetch vehicles & adults
     });
   }
-
-  /// Fetches the user's vehicles & family members (for selecting driver & owner)
+  
+  /// Fetches the logged-in user's profile, family members, and vehicles.
+  /// Refactored to use the flat user model instead of nested subcollections.
+  /// This method supports smart defaults (driver auto-select, vehicle availability) and ensures the carpool form is prefilled properly.
   Future<void> _fetchUserData() async {
-    var userData = await _firebaseFunctions.getUserData();
-    var familyMembers = await _firebaseFunctions.getFamilyMembers();
-    var vehicleData = await _firebaseFunctions.getVehicles();
+    // 🔹 Get current account owner's document from top-level `users/` collection
     _loggedInUserData = await _firebaseFunctions.getUserData();
 
-     // 🔄 If date/time is selected, check availability for each vehicle
+    // 🔹 Get all family members using the new flat structure (includes account owner implicitly)
+    final familyMembers = await _firebaseFunctions.getFamilyMembersByIds();
+
+    // 🔹 Get vehicles owned by the current user (this logic is NOT changed in this phase)
+    final vehicleData = await _firebaseFunctions.getVehicles();
+
+    // 🔹 If carpool date/time is selected, check vehicle availability
     if (_selectedDate != null && _selectedTime != null) {
       for (var vehicle in vehicleData) {
         bool available = await _firebaseFunctions.isVehicleAvailable(
-        vehicleId: vehicle['id'],
-        carpoolDate: Timestamp.fromDate(_selectedDate!),
-        carpoolTime: Timestamp.fromDate(DateTime(
-          _selectedDate!.year,
-          _selectedDate!.month,
-          _selectedDate!.day,
-          _selectedTime!.hour,
-          _selectedTime!.minute,
-        )),
-      );
+          vehicleId: vehicle['id'],
+          carpoolDate: Timestamp.fromDate(_selectedDate!),
+          carpoolTime: Timestamp.fromDate(DateTime(
+            _selectedDate!.year,
+            _selectedDate!.month,
+            _selectedDate!.day,
+            _selectedTime!.hour,
+            _selectedTime!.minute,
+          )),
+        );
 
-      // ✅ If in edit mode and this vehicle is the selected one, allow it
-      if (_isEditing && vehicle['id'] == _selectedVehicle) {
-        available = true;
-      }
+        // 🔸 In edit mode, allow selected vehicle even if it's normally "unavailable"
+        if (_isEditing && vehicle['id'] == _selectedVehicle) {
+          available = true;
+        }
 
-      vehicle['isAvailable'] = available; // 🔹 Tag vehicle as available/unavailable
+        vehicle['isAvailable'] = available;
       }
     } else {
-      // If no time/date selected yet, assume all available
+      // 🔸 If date/time not selected, allow all vehicles by default
       for (var vehicle in vehicleData) {
         vehicle['isAvailable'] = true;
       }
     }
 
     setState(() {
-      _selectedOwner = _loggedInUserData?["id"];
-      print("Selected Owner:");
-      print(_selectedOwner);
-
-      // add all adults of the family
-      _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
-
-      // add all members of the family
-      _familyMembers.clear(); // ✅ Prevent duplicates
-      _familyMembers.addAll(familyMembers);
-
-      _adults.clear(); // ✅ Clear previous data before adding adults again
-      _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
-
-      _familyMembers.removeWhere((m) => m["id"] == userData?["id"]); // prevent duplicate if already added
-      _adults.removeWhere((m) => m["id"] == userData?["id"]);        // prevent duplicate if already added
-
-      // assign all vehicle data to vehicles variables
       _vehicles = vehicleData;
 
-      if (userData != null) {
-      // 🔹 Include account owner in _adults for driver selectionZ
-        _adults.insert(0, {
-          "id": userData["id"],
-          "fullName": userData["fullName"],
-          "email": userData["email"],
-          "phoneNumber": userData["phoneNumber"],
-          "isAdult": true,
-          "driverLicense": userData["driverLicense"] ?? "",
-          "profilePhoto": userData["profilePhoto"],
-        });
+      // ✅ Account owner is already included in the result of getUserData()
+      // Used for setting ownership in carpool creation
+      _selectedOwner = _loggedInUserData?["id"];
 
-      // 🔹 Include account owner in _familyMembers for participant selection
-         _familyMembers.add({
-          "id": userData["id"],
-          "fullName": userData["fullName"],
-          "email": userData["email"],
-          "phoneNumber": userData["phoneNumber"],
-          "isAdult": true,
-          "driverLicense": userData["driverLicense"] ?? "",
-          "profilePhoto": userData["profilePhoto"],
-        });
-      }
+      // ✅ Update member and adult lists from flat user data
+      _familyMembers = familyMembers;
 
-      // 👇 Smart Default: Auto-select the only driver if only one exists
+      // 🔹 Drivers must be adults AND have a non-empty driver license
+      _adults = familyMembers
+          .where((m) =>
+              m["isAdult"] == true &&
+              (m["driverLicense"]?.toString().isNotEmpty ?? false))
+          .toList();
+
+      // ✅ Smart default: if only one valid driver, auto-select them
       if (_adults.length == 1) {
         _selectedDriver = _adults.first["id"];
       }
 
+      // ✅ Preserve vehicle prefill logic in edit mode
       if (_isEditing && _selectedVehicle != null) {
-        _onVehicleSelected(_selectedVehicle!); // ✅ Ensure vehicle max capacity is set for validation
+        _onVehicleSelected(_selectedVehicle!);
       }
     });
   }
+
+
+  // /// Fetches the user's vehicles & family members (for selecting driver & owner)
+  // Future<void> _fetchUserData() async {
+  //   var userData = await _firebaseFunctions.getUserData();
+  //   var familyMembers = await _firebaseFunctions.getFamilyMembers();
+  //   var vehicleData = await _firebaseFunctions.getVehicles();
+  //   _loggedInUserData = await _firebaseFunctions.getUserData();
+
+  //    // 🔄 If date/time is selected, check availability for each vehicle
+  //   if (_selectedDate != null && _selectedTime != null) {
+  //     for (var vehicle in vehicleData) {
+  //       bool available = await _firebaseFunctions.isVehicleAvailable(
+  //       vehicleId: vehicle['id'],
+  //       carpoolDate: Timestamp.fromDate(_selectedDate!),
+  //       carpoolTime: Timestamp.fromDate(DateTime(
+  //         _selectedDate!.year,
+  //         _selectedDate!.month,
+  //         _selectedDate!.day,
+  //         _selectedTime!.hour,
+  //         _selectedTime!.minute,
+  //       )),
+  //     );
+
+  //     // ✅ If in edit mode and this vehicle is the selected one, allow it
+  //     if (_isEditing && vehicle['id'] == _selectedVehicle) {
+  //       available = true;
+  //     }
+
+  //     vehicle['isAvailable'] = available; // 🔹 Tag vehicle as available/unavailable
+  //     }
+  //   } else {
+  //     // If no time/date selected yet, assume all available
+  //     for (var vehicle in vehicleData) {
+  //       vehicle['isAvailable'] = true;
+  //     }
+  //   }
+
+  //   setState(() {
+  //     _selectedOwner = _loggedInUserData?["id"];
+  //     print("Selected Owner:");
+  //     print(_selectedOwner);
+
+  //     // add all adults of the family
+  //     _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
+
+  //     // add all members of the family
+  //     _familyMembers.clear(); // ✅ Prevent duplicates
+  //     _familyMembers.addAll(familyMembers);
+
+  //     _adults.clear(); // ✅ Clear previous data before adding adults again
+  //     _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
+
+  //     _familyMembers.removeWhere((m) => m["id"] == userData?["id"]); // prevent duplicate if already added
+  //     _adults.removeWhere((m) => m["id"] == userData?["id"]);        // prevent duplicate if already added
+
+  //     // assign all vehicle data to vehicles variables
+  //     _vehicles = vehicleData;
+
+  //     if (userData != null) {
+  //     // 🔹 Include account owner in _adults for driver selectionZ
+  //       _adults.insert(0, {
+  //         "id": userData["id"],
+  //         "fullName": userData["fullName"],
+  //         "email": userData["email"],
+  //         "phoneNumber": userData["phoneNumber"],
+  //         "isAdult": true,
+  //         "driverLicense": userData["driverLicense"] ?? "",
+  //         "profilePhoto": userData["profilePhoto"],
+  //       });
+
+  //     // 🔹 Include account owner in _familyMembers for participant selection
+  //        _familyMembers.add({
+  //         "id": userData["id"],
+  //         "fullName": userData["fullName"],
+  //         "email": userData["email"],
+  //         "phoneNumber": userData["phoneNumber"],
+  //         "isAdult": true,
+  //         "driverLicense": userData["driverLicense"] ?? "",
+  //         "profilePhoto": userData["profilePhoto"],
+  //       });
+  //     }
+
+  //     // 👇 Smart Default: Auto-select the only driver if only one exists
+  //     if (_adults.length == 1) {
+  //       _selectedDriver = _adults.first["id"];
+  //     }
+
+  //     if (_isEditing && _selectedVehicle != null) {
+  //       _onVehicleSelected(_selectedVehicle!); // ✅ Ensure vehicle max capacity is set for validation
+  //     }
+  //   });
+  // }
 
   // ⬅️ Called from initState when editing an existing carpool
   void _preFillFormWithCarpoolData(Map<String, dynamic> data) {
