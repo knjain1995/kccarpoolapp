@@ -454,12 +454,12 @@ class FirebaseFunctions {
     }
   }
 
-  /// ✅ Updates an existing family member in Firestore
-  Future<void> updateFamilyMember({
+  /// Updates an existing family member (flat model under /users collection)
+  Future<void> updateFamilyMemberInUsers({
     required String memberId,
     required String fullName,
-    required String? email,
-    required String? phoneNumber,
+    String? email,
+    String? phoneNumber,
     required bool isAdult,
     DateTime? dateOfBirth,
     required String profilePhoto,
@@ -473,32 +473,78 @@ class FirebaseFunctions {
     String? gender,
     String? relationToChild,
   }) async {
-    String? userId = getCurrentUserId();
-    if (userId == null) throw Exception("No authenticated user found.");
+    final docRef = _firestore.collection('users').doc(memberId);
 
-    try {
-      await _firestore.collection("users").doc(userId).collection("family").doc(memberId).update({
-        "fullName": fullName,
-        "email": email ?? "",
-        "phoneNumber": phoneNumber ?? "",
-        "isAdult": isAdult,
-        "dateOfBirth": isAdult ? null : Timestamp.fromDate(dateOfBirth!),
-        "profilePhoto": profilePhoto,
-        "govId": govId,
-        "driverLicense": isAdult ? driverLicense ?? "" : null,
-        "schoolId": isAdult ? null : schoolId ?? "",
-        "schoolName": isAdult ? null : schoolName ?? "",
-        "schoolIdNo": isAdult ? null : schoolIdNo ?? "",
-        "grade": isAdult ? null : grade ?? "",
-        "address": address,
-        "gender": isAdult ? null : gender,
-        "relationToChild": relationToChild,
-      });
-    } catch (e) {
-      print("Error updating family member: $e");
-      throw Exception("Failed to update family member.");
-    }
+    final Map<String, dynamic> data = {
+      'fullName': fullName,
+      'email': email ?? "",
+      'phoneNumber': phoneNumber ?? "",
+      'emailVerified': false,  // Placeholder for future verification
+      'phoneVerified': false,
+      'isAdult': isAdult,
+      'address': address,
+      'profilePhoto': profilePhoto,
+      'govId': govId,
+      'driverLicense': driverLicense ?? "",
+      'relationToChild': isAdult ? relationToChild ?? "" : "",
+      'gender': isAdult ? null : gender ?? "",
+      'dateOfBirth': isAdult ? null : Timestamp.fromDate(dateOfBirth!),
+      'schoolId': isAdult ? null : schoolId ?? "",
+      'schoolName': isAdult ? null : schoolName ?? "",
+      'schoolIdNo': isAdult ? null : schoolIdNo ?? "",
+      'grade': isAdult ? null : grade ?? "",
+      'timestamp': FieldValue.serverTimestamp(),
+    };
+
+    await docRef.update(data);
   }
+
+
+  // /// ✅ Updates an existing family member in Firestore
+  // Future<void> updateFamilyMember({
+  //   required String memberId,
+  //   required String fullName,
+  //   required String? email,
+  //   required String? phoneNumber,
+  //   required bool isAdult,
+  //   DateTime? dateOfBirth,
+  //   required String profilePhoto,
+  //   required String govId,
+  //   String? schoolId,
+  //   String? schoolName,
+  //   String? schoolIdNo,
+  //   String? grade,
+  //   String? driverLicense,
+  //   required String address,
+  //   String? gender,
+  //   String? relationToChild,
+  // }) async {
+  //   String? userId = getCurrentUserId();
+  //   if (userId == null) throw Exception("No authenticated user found.");
+
+  //   try {
+  //     await _firestore.collection("users").doc(userId).collection("family").doc(memberId).update({
+  //       "fullName": fullName,
+  //       "email": email ?? "",
+  //       "phoneNumber": phoneNumber ?? "",
+  //       "isAdult": isAdult,
+  //       "dateOfBirth": isAdult ? null : Timestamp.fromDate(dateOfBirth!),
+  //       "profilePhoto": profilePhoto,
+  //       "govId": govId,
+  //       "driverLicense": isAdult ? driverLicense ?? "" : null,
+  //       "schoolId": isAdult ? null : schoolId ?? "",
+  //       "schoolName": isAdult ? null : schoolName ?? "",
+  //       "schoolIdNo": isAdult ? null : schoolIdNo ?? "",
+  //       "grade": isAdult ? null : grade ?? "",
+  //       "address": address,
+  //       "gender": isAdult ? null : gender,
+  //       "relationToChild": relationToChild,
+  //     });
+  //   } catch (e) {
+  //     print("Error updating family member: $e");
+  //     throw Exception("Failed to update family member.");
+  //   }
+  // }
 
     /// 🔹 **Adds a new vehicle to Firestore**
   Future<void> addVehicle(Map<String, dynamic> vehicleData) async {

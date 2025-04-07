@@ -193,7 +193,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService(); // Using AuthService for authentication
   final TextEditingController _nameController = TextEditingController(text: 'Kartik Narendra Jain'); // Full Name
-  final TextEditingController _emailController = TextEditingController(text: 'knjain1995@gmail.com'); // Default test email (Remove before production)
+  final TextEditingController _emailController = TextEditingController(text: 'knjain100@gmail.com'); // Default test email (Remove before production)
   final TextEditingController _phoneController = TextEditingController(text: '9810665538'); // Phone Number
   final TextEditingController _passwordController = TextEditingController(text: 'Test@123'); // Default test password (Remove before production)
   final TextEditingController _confirmPasswordController = TextEditingController(text: 'Test@123'); // Used only in signup mode
@@ -543,7 +543,6 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
       // 🔸 Fetch Driver Info
       final driverData = await _firebaseFunctions.getDriverById(
         driverId: carpool["carpoolDriverId"],
-        carpoolOwnerId: carpool["carpoolOwnerId"],
       );
       carpool['driverName'] = driverData?['fullName'] ?? "Unknown";
       carpool['driverPhoto'] = driverData?['profilePhoto'];
@@ -559,7 +558,6 @@ class _CarpoolListScreenState extends State<CarpoolListScreen> {
       final List<String> participantIds = List<String>.from(carpool['carpoolParticipants'] ?? []);
       final List<Map<String, dynamic>> resolvedParticipants =
           await _firebaseFunctions.getCarpoolParticipants(
-        carpoolOwnerId: carpool['carpoolOwnerId'],
         carpoolDriverId: carpool['carpoolDriverId'],
         participantIds: participantIds,
       );
@@ -720,98 +718,170 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
       _fetchUserData(); // 🔄 Always fetch vehicles & adults
     });
   }
-
-  /// Fetches the user's vehicles & family members (for selecting driver & owner)
+  
+  /// Fetches the logged-in user's profile, family members, and vehicles.
+  /// Refactored to use the flat user model instead of nested subcollections.
+  /// This method supports smart defaults (driver auto-select, vehicle availability) and ensures the carpool form is prefilled properly.
   Future<void> _fetchUserData() async {
-    var userData = await _firebaseFunctions.getUserData();
-    var familyMembers = await _firebaseFunctions.getFamilyMembers();
-    var vehicleData = await _firebaseFunctions.getVehicles();
+    // 🔹 Get current account owner's document from top-level `users/` collection
     _loggedInUserData = await _firebaseFunctions.getUserData();
 
-     // 🔄 If date/time is selected, check availability for each vehicle
+    // 🔹 Get all family members using the new flat structure (includes account owner implicitly)
+    final familyMembers = await _firebaseFunctions.getFamilyMembersByIds();
+
+    // 🔹 Get vehicles owned by the current user (this logic is NOT changed in this phase)
+    final vehicleData = await _firebaseFunctions.getVehicles();
+
+    // 🔹 If carpool date/time is selected, check vehicle availability
     if (_selectedDate != null && _selectedTime != null) {
       for (var vehicle in vehicleData) {
         bool available = await _firebaseFunctions.isVehicleAvailable(
-        vehicleId: vehicle['id'],
-        carpoolDate: Timestamp.fromDate(_selectedDate!),
-        carpoolTime: Timestamp.fromDate(DateTime(
-          _selectedDate!.year,
-          _selectedDate!.month,
-          _selectedDate!.day,
-          _selectedTime!.hour,
-          _selectedTime!.minute,
-        )),
-      );
+          vehicleId: vehicle['id'],
+          carpoolDate: Timestamp.fromDate(_selectedDate!),
+          carpoolTime: Timestamp.fromDate(DateTime(
+            _selectedDate!.year,
+            _selectedDate!.month,
+            _selectedDate!.day,
+            _selectedTime!.hour,
+            _selectedTime!.minute,
+          )),
+        );
 
-      // ✅ If in edit mode and this vehicle is the selected one, allow it
-      if (_isEditing && vehicle['id'] == _selectedVehicle) {
-        available = true;
-      }
+        // 🔸 In edit mode, allow selected vehicle even if it's normally "unavailable"
+        if (_isEditing && vehicle['id'] == _selectedVehicle) {
+          available = true;
+        }
 
-      vehicle['isAvailable'] = available; // 🔹 Tag vehicle as available/unavailable
+        vehicle['isAvailable'] = available;
       }
     } else {
-      // If no time/date selected yet, assume all available
+      // 🔸 If date/time not selected, allow all vehicles by default
       for (var vehicle in vehicleData) {
         vehicle['isAvailable'] = true;
       }
     }
 
     setState(() {
-      _selectedOwner = _loggedInUserData?["id"];
-      print("Selected Owner:");
-      print(_selectedOwner);
-
-      // add all adults of the family
-      _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
-
-      // add all members of the family
-      _familyMembers.clear(); // ✅ Prevent duplicates
-      _familyMembers.addAll(familyMembers);
-
-      _adults.clear(); // ✅ Clear previous data before adding adults again
-      _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
-
-      _familyMembers.removeWhere((m) => m["id"] == userData?["id"]); // prevent duplicate if already added
-      _adults.removeWhere((m) => m["id"] == userData?["id"]);        // prevent duplicate if already added
-
-      // assign all vehicle data to vehicles variables
       _vehicles = vehicleData;
 
-      if (userData != null) {
-      // 🔹 Include account owner in _adults for driver selectionZ
-        _adults.insert(0, {
-          "id": userData["id"],
-          "fullName": userData["fullName"],
-          "email": userData["email"],
-          "phoneNumber": userData["phoneNumber"],
-          "isAdult": true,
-          "driverLicense": userData["driverLicense"] ?? "",
-          "profilePhoto": userData["profilePhoto"],
-        });
+      // ✅ Account owner is already included in the result of getUserData()
+      // Used for setting ownership in carpool creation
+      _selectedOwner = _loggedInUserData?["id"];
 
-      // 🔹 Include account owner in _familyMembers for participant selection
-         _familyMembers.add({
-          "id": userData["id"],
-          "fullName": userData["fullName"],
-          "email": userData["email"],
-          "phoneNumber": userData["phoneNumber"],
-          "isAdult": true,
-          "driverLicense": userData["driverLicense"] ?? "",
-          "profilePhoto": userData["profilePhoto"],
-        });
-      }
+      // ✅ Update member and adult lists from flat user data
+      _familyMembers = familyMembers;
 
-      // 👇 Smart Default: Auto-select the only driver if only one exists
+      // 🔹 Drivers must be adults AND have a non-empty driver license
+      _adults = familyMembers
+          .where((m) =>
+              m["isAdult"] == true &&
+              (m["driverLicense"]?.toString().isNotEmpty ?? false))
+          .toList();
+
+      // ✅ Smart default: if only one valid driver, auto-select them
       if (_adults.length == 1) {
         _selectedDriver = _adults.first["id"];
       }
 
+      // ✅ Preserve vehicle prefill logic in edit mode
       if (_isEditing && _selectedVehicle != null) {
-        _onVehicleSelected(_selectedVehicle!); // ✅ Ensure vehicle max capacity is set for validation
+        _onVehicleSelected(_selectedVehicle!);
       }
     });
   }
+
+
+  // /// Fetches the user's vehicles & family members (for selecting driver & owner)
+  // Future<void> _fetchUserData() async {
+  //   var userData = await _firebaseFunctions.getUserData();
+  //   var familyMembers = await _firebaseFunctions.getFamilyMembers();
+  //   var vehicleData = await _firebaseFunctions.getVehicles();
+  //   _loggedInUserData = await _firebaseFunctions.getUserData();
+
+  //    // 🔄 If date/time is selected, check availability for each vehicle
+  //   if (_selectedDate != null && _selectedTime != null) {
+  //     for (var vehicle in vehicleData) {
+  //       bool available = await _firebaseFunctions.isVehicleAvailable(
+  //       vehicleId: vehicle['id'],
+  //       carpoolDate: Timestamp.fromDate(_selectedDate!),
+  //       carpoolTime: Timestamp.fromDate(DateTime(
+  //         _selectedDate!.year,
+  //         _selectedDate!.month,
+  //         _selectedDate!.day,
+  //         _selectedTime!.hour,
+  //         _selectedTime!.minute,
+  //       )),
+  //     );
+
+  //     // ✅ If in edit mode and this vehicle is the selected one, allow it
+  //     if (_isEditing && vehicle['id'] == _selectedVehicle) {
+  //       available = true;
+  //     }
+
+  //     vehicle['isAvailable'] = available; // 🔹 Tag vehicle as available/unavailable
+  //     }
+  //   } else {
+  //     // If no time/date selected yet, assume all available
+  //     for (var vehicle in vehicleData) {
+  //       vehicle['isAvailable'] = true;
+  //     }
+  //   }
+
+  //   setState(() {
+  //     _selectedOwner = _loggedInUserData?["id"];
+  //     print("Selected Owner:");
+  //     print(_selectedOwner);
+
+  //     // add all adults of the family
+  //     _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
+
+  //     // add all members of the family
+  //     _familyMembers.clear(); // ✅ Prevent duplicates
+  //     _familyMembers.addAll(familyMembers);
+
+  //     _adults.clear(); // ✅ Clear previous data before adding adults again
+  //     _adults = familyMembers.where((member) => member["isAdult"] == true).toList();
+
+  //     _familyMembers.removeWhere((m) => m["id"] == userData?["id"]); // prevent duplicate if already added
+  //     _adults.removeWhere((m) => m["id"] == userData?["id"]);        // prevent duplicate if already added
+
+  //     // assign all vehicle data to vehicles variables
+  //     _vehicles = vehicleData;
+
+  //     if (userData != null) {
+  //     // 🔹 Include account owner in _adults for driver selectionZ
+  //       _adults.insert(0, {
+  //         "id": userData["id"],
+  //         "fullName": userData["fullName"],
+  //         "email": userData["email"],
+  //         "phoneNumber": userData["phoneNumber"],
+  //         "isAdult": true,
+  //         "driverLicense": userData["driverLicense"] ?? "",
+  //         "profilePhoto": userData["profilePhoto"],
+  //       });
+
+  //     // 🔹 Include account owner in _familyMembers for participant selection
+  //        _familyMembers.add({
+  //         "id": userData["id"],
+  //         "fullName": userData["fullName"],
+  //         "email": userData["email"],
+  //         "phoneNumber": userData["phoneNumber"],
+  //         "isAdult": true,
+  //         "driverLicense": userData["driverLicense"] ?? "",
+  //         "profilePhoto": userData["profilePhoto"],
+  //       });
+  //     }
+
+  //     // 👇 Smart Default: Auto-select the only driver if only one exists
+  //     if (_adults.length == 1) {
+  //       _selectedDriver = _adults.first["id"];
+  //     }
+
+  //     if (_isEditing && _selectedVehicle != null) {
+  //       _onVehicleSelected(_selectedVehicle!); // ✅ Ensure vehicle max capacity is set for validation
+  //     }
+  //   });
+  // }
 
   // ⬅️ Called from initState when editing an existing carpool
   void _preFillFormWithCarpoolData(Map<String, dynamic> data) {
@@ -2606,7 +2676,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Loads family members using flat user model & families/{familyId}/memberUserIds
   Future<void> _loadFamilyMembers() async {
     List<Map<String, dynamic>> familyData =
-        await _firebaseFunctions.getFamilyMembersByIds(); // 🔄 New flat model
+        await _firebaseFunctions.getFamilyMembersByIds(includePrimaryUser: false); // 🔄 New flat model
 
     setState(() {
       _adults = familyData.where((member) => member['isAdult'] == true).toList();
@@ -3315,19 +3385,19 @@ class FirebaseFunctions {
   }
 
   /// Fetches family members using the 'memberUserIds' array in families/{familyId}.
-  /// Skips the primary user and returns only the rest of the family.
-  Future<List<Map<String, dynamic>>> getFamilyMembersByIds() async {
+  /// If [includePrimaryUser] is false, the account owner will be excluded.
+  Future<List<Map<String, dynamic>>> getFamilyMembersByIds({bool includePrimaryUser = true}) async {
     final FirebaseAuth auth = FirebaseAuth.instance;
     final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
     final String uid = auth.currentUser!.uid;
 
-    // 1️⃣ Get the current user's document
+    // 1️⃣ Get the current user's document to retrieve familyId
     final DocumentSnapshot userDoc =
         await firestore.collection("users").doc(uid).get();
 
     if (!userDoc.exists) {
-      throw Exception("Current user document not found.");
+      throw Exception("User document not found.");
     }
 
     final userData = userDoc.data() as Map<String, dynamic>;
@@ -3344,24 +3414,28 @@ class FirebaseFunctions {
     final familyData = familyDoc.data() as Map<String, dynamic>;
     final List<dynamic> memberIds = familyData["memberUserIds"] ?? [];
 
-    // 3️⃣ Fetch each user's full profile by ID
     List<Map<String, dynamic>> familyMembers = [];
 
     for (String memberId in memberIds) {
-      if (memberId == uid) continue; // Skip the primary user
-
       final DocumentSnapshot memberDoc =
           await firestore.collection("users").doc(memberId).get();
 
       if (memberDoc.exists) {
         final data = memberDoc.data() as Map<String, dynamic>;
         data['id'] = memberDoc.id;
+
+        // 🔹 Exclude primary user if requested
+        if (!includePrimaryUser && data["isPrimaryUser"] == true) {
+          continue;
+        }
+
         familyMembers.add(data);
       }
     }
 
     return familyMembers;
   }
+
 
 
   /// Fetches all family members of the logged-in user from Firestore
@@ -3718,47 +3792,69 @@ class FirebaseFunctions {
     }
   }
 
-  /// Fetches driver details by ID from either users or family subcollection
-  /// Fetches driver info by ID from either users or family subcollection of the carpool owner
+  /// Fetches driver info by ID from the flat `users` collection only.
   Future<Map<String, dynamic>?> getDriverById({
     required String driverId,
-    required String carpoolOwnerId, // Always the account owner
   }) async {
     try {
-      final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection("users").doc(driverId).get();
 
-      // Case 1: If the driverId is the same as the account owner's ID
-      if (driverId == carpoolOwnerId) {
-        DocumentSnapshot userDoc =
-            await _firestore.collection("users").doc(driverId).get();
-        if (userDoc.exists) {
-          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-          userData["id"] = driverId;
-          return userData;
-        }
+      if (userDoc.exists) {
+        Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+        userData["id"] = userDoc.id;
+        return userData;
       }
 
-      // Case 2: If the driverId is in the family subcollection of the carpool owner
-      DocumentSnapshot familyDoc = await _firestore
-          .collection("users")
-          .doc(carpoolOwnerId)
-          .collection("family")
-          .doc(driverId)
-          .get();
-
-      if (familyDoc.exists) {
-        Map<String, dynamic> familyData =
-            familyDoc.data() as Map<String, dynamic>;
-        familyData["id"] = driverId;
-        return familyData;
-      }
-
-      return null; // Not found
+      return null;
     } catch (e) {
       print("Error fetching driver: $e");
       return null;
     }
   }
+
+
+  // /// Fetches driver details by ID from either users or family subcollection
+  // /// Fetches driver info by ID from either users or family subcollection of the carpool owner
+  // Future<Map<String, dynamic>?> getDriverById({
+  //   required String driverId,
+  //   required String carpoolOwnerId, // Always the account owner
+  // }) async {
+  //   try {
+  //     final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  //     // Case 1: If the driverId is the same as the account owner's ID
+  //     if (driverId == carpoolOwnerId) {
+  //       DocumentSnapshot userDoc =
+  //           await _firestore.collection("users").doc(driverId).get();
+  //       if (userDoc.exists) {
+  //         Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+  //         userData["id"] = driverId;
+  //         return userData;
+  //       }
+  //     }
+
+  //     // Case 2: If the driverId is in the family subcollection of the carpool owner
+  //     DocumentSnapshot familyDoc = await _firestore
+  //         .collection("users")
+  //         .doc(carpoolOwnerId)
+  //         .collection("family")
+  //         .doc(driverId)
+  //         .get();
+
+  //     if (familyDoc.exists) {
+  //       Map<String, dynamic> familyData =
+  //           familyDoc.data() as Map<String, dynamic>;
+  //       familyData["id"] = driverId;
+  //       return familyData;
+  //     }
+
+  //     return null; // Not found
+  //   } catch (e) {
+  //     print("Error fetching driver: $e");
+  //     return null;
+  //   }
+  // }
 
   /// 🔍 Fetches a user's document from the `users` collection using their user ID
   Future<Map<String, dynamic>?> getUserById(String userId) async {
@@ -3784,50 +3880,79 @@ class FirebaseFunctions {
     }
   }
 
-
-  /// 🔹 Resolves participant details (excluding driver) for a carpool
+  /// Fetches all participants (excluding driver) from the flat users collection.
   Future<List<Map<String, dynamic>>> getCarpoolParticipants({
-    required String carpoolOwnerId,
     required String carpoolDriverId,
     required List<String> participantIds,
   }) async {
     List<Map<String, dynamic>> resolvedParticipants = [];
 
-    try {
-      for (String participantId in participantIds) {
-        // 🚫 Skip the driver
-        if (participantId == carpoolDriverId) continue;
+    for (String participantId in participantIds) {
+      if (participantId == carpoolDriverId) continue; // 🚫 Skip the driver
 
-        Map<String, dynamic>? participantData;
+      try {
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection("users")
+            .doc(participantId)
+            .get();
 
-        if (participantId == carpoolOwnerId) {
-          // ✅ Reuse getUserById for account owner
-          participantData = await getUserById(participantId);
-        } else {
-          // ✅ Participant is a family member
-          DocumentSnapshot doc = await _firestore
-              .collection("users")
-              .doc(carpoolOwnerId)
-              .collection("family")
-              .doc(participantId)
-              .get();
-          if (doc.exists) {
-            participantData = doc.data() as Map<String, dynamic>;
-          }
+        if (userDoc.exists) {
+          Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+          userData["id"] = userDoc.id;
+          resolvedParticipants.add(userData);
         }
-
-        if (participantData != null) {
-          participantData["id"] = participantId;
-          resolvedParticipants.add(participantData);
-        }
+      } catch (e) {
+        print("Error fetching participant $participantId: $e");
       }
-
-      return resolvedParticipants;
-    } catch (e) {
-      print("❌ Error resolving carpool participants: $e");
-      return [];
     }
+
+    return resolvedParticipants;
   }
+
+
+  // /// 🔹 Resolves participant details (excluding driver) for a carpool
+  // Future<List<Map<String, dynamic>>> getCarpoolParticipants({
+  //   required String carpoolOwnerId,
+  //   required String carpoolDriverId,
+  //   required List<String> participantIds,
+  // }) async {
+  //   List<Map<String, dynamic>> resolvedParticipants = [];
+
+  //   try {
+  //     for (String participantId in participantIds) {
+  //       // 🚫 Skip the driver
+  //       if (participantId == carpoolDriverId) continue;
+
+  //       Map<String, dynamic>? participantData;
+
+  //       if (participantId == carpoolOwnerId) {
+  //         // ✅ Reuse getUserById for account owner
+  //         participantData = await getUserById(participantId);
+  //       } else {
+  //         // ✅ Participant is a family member
+  //         DocumentSnapshot doc = await _firestore
+  //             .collection("users")
+  //             .doc(carpoolOwnerId)
+  //             .collection("family")
+  //             .doc(participantId)
+  //             .get();
+  //         if (doc.exists) {
+  //           participantData = doc.data() as Map<String, dynamic>;
+  //         }
+  //       }
+
+  //       if (participantData != null) {
+  //         participantData["id"] = participantId;
+  //         resolvedParticipants.add(participantData);
+  //       }
+  //     }
+
+  //     return resolvedParticipants;
+  //   } catch (e) {
+  //     print("❌ Error resolving carpool participants: $e");
+  //     return [];
+  //   }
+  // }
 
 
 

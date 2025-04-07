@@ -13,7 +13,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService(); // Using AuthService for authentication
   final TextEditingController _nameController = TextEditingController(text: 'Kartik Narendra Jain'); // Full Name
-  final TextEditingController _emailController = TextEditingController(text: 'knjain1995@gmail.com'); // Default test email (Remove before production)
+  final TextEditingController _emailController = TextEditingController(text: 'knjain100@gmail.com'); // Default test email (Remove before production)
   final TextEditingController _phoneController = TextEditingController(text: '9810665538'); // Phone Number
   final TextEditingController _passwordController = TextEditingController(text: 'Test@123'); // Default test password (Remove before production)
   final TextEditingController _confirmPasswordController = TextEditingController(text: 'Test@123'); // Used only in signup mode

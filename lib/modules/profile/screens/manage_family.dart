@@ -114,7 +114,7 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
     }
     
     if (_memberId != null) {
-      await _firebaseFunctions.updateFamilyMember(
+      await _firebaseFunctions.updateFamilyMemberInUsers(
         memberId: _memberId!,
         fullName: _nameController.text.trim(),
         email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
