@@ -81,7 +81,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
     final familyMembers = await _firebaseFunctions.getFamilyMembersByIds();
 
     // 🔹 Get vehicles owned by the current user (this logic is NOT changed in this phase)
-    final vehicleData = await _firebaseFunctions.getVehicles();
+    final vehicleData = await _firebaseFunctions.getFamilyVehicles();
 
     // 🔹 If carpool date/time is selected, check vehicle availability
     if (_selectedDate != null && _selectedTime != null) {

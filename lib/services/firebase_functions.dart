@@ -622,27 +622,54 @@ class FirebaseFunctions {
     }
   }
 
-  /// 🔹 **Retrieves the list of vehicles for the logged-in user**
-  Future<List<Map<String, dynamic>>> getVehicles() async {
-    User? user = _auth.currentUser;
-    if (user == null) throw Exception("No authenticated user found.");
+  /// ✅ Fetches vehicles directly from top-level /vehicles where familyId matches
+  Future<List<Map<String, dynamic>>> getFamilyVehicles() async {
+    String? currentUserId = _auth.currentUser?.uid;
+    if (currentUserId == null) throw Exception("No user is logged in.");
 
-    try {
-      QuerySnapshot vehicleSnapshot =
-          await _firestore.collection("users").doc(user.uid).collection("vehicles").get();
+    // Fetch the current user's familyId
+    DocumentSnapshot userDoc = await _firestore.collection("users").doc(currentUserId).get();
+    final familyId = userDoc["familyId"];
 
-      List<Map<String, dynamic>> vehicles = vehicleSnapshot.docs.map((doc) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        data["id"] = doc.id; // Include document ID for editing/deleting
-        return data;
-      }).toList();
+    // ✅ Query vehicles where familyId matches
+    final querySnapshot = await _firestore
+        .collection("vehicles")
+        .where("familyId", isEqualTo: familyId)
+        .get();
 
-      return vehicles;
-    } catch (e) {
-      print("❌ Error fetching vehicles: $e");
-      throw Exception("Failed to retrieve vehicles.");
-    }
+    List<Map<String, dynamic>> vehicles = querySnapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      data["id"] = doc.id;
+      return data;
+    }).toList();
+
+    return vehicles;
   }
+
+
+
+
+  // /// 🔹 **Retrieves the list of vehicles for the logged-in user**
+  // Future<List<Map<String, dynamic>>> getVehicles() async {
+  //   User? user = _auth.currentUser;
+  //   if (user == null) throw Exception("No authenticated user found.");
+
+  //   try {
+  //     QuerySnapshot vehicleSnapshot =
+  //         await _firestore.collection("users").doc(user.uid).collection("vehicles").get();
+
+  //     List<Map<String, dynamic>> vehicles = vehicleSnapshot.docs.map((doc) {
+  //       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+  //       data["id"] = doc.id; // Include document ID for editing/deleting
+  //       return data;
+  //     }).toList();
+
+  //     return vehicles;
+  //   } catch (e) {
+  //     print("❌ Error fetching vehicles: $e");
+  //     throw Exception("Failed to retrieve vehicles.");
+  //   }
+  // }
 
 
   /// Creates a new carpool in Firestore

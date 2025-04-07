@@ -144,7 +144,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     /// Fetches the user's vehicles from Firestore
   Future<void> _loadVehicles() async {
-    List<Map<String, dynamic>> vehicleData = await _firebaseFunctions.getVehicles();
+    List<Map<String, dynamic>> vehicleData = await _firebaseFunctions.getFamilyVehicles();
 
     setState(() {
       _vehicles = vehicleData;
