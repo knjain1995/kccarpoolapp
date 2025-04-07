@@ -546,42 +546,67 @@ class FirebaseFunctions {
   //   }
   // }
 
-    /// 🔹 **Adds a new vehicle to Firestore**
+  /// Adds a new vehicle to the top-level vehicles collection
   Future<void> addVehicle(Map<String, dynamic> vehicleData) async {
-    User? user = _auth.currentUser;
-    if (user == null) throw Exception("No authenticated user found.");
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) throw Exception("User not authenticated");
 
-    try {
-      await _firestore.collection("users").doc(user.uid).collection("vehicles").add(vehicleData);
-      print("✅ Vehicle added successfully.");
-    } catch (e) {
-      print("❌ Error adding vehicle: $e");
-      throw Exception("Failed to add vehicle.");
-    }
+    final userDoc = await _firestore.collection("users").doc(currentUser.uid).get();
+    if (!userDoc.exists) throw Exception("User document not found");
+
+    final String familyId = userDoc.data()?['familyId'];
+    if (familyId.isEmpty) throw Exception("User missing familyId");
+
+    // Include metadata in vehicle document
+    vehicleData["userId"] = currentUser.uid;
+    vehicleData["familyId"] = familyId;
+    vehicleData["createdAt"] = FieldValue.serverTimestamp();
+
+    await _firestore.collection("vehicles").add(vehicleData);
   }
+
+  // /// 🔹 **Adds a new vehicle to Firestore**
+  // Future<void> addVehicle(Map<String, dynamic> vehicleData) async {
+  //   User? user = _auth.currentUser;
+  //   if (user == null) throw Exception("No authenticated user found.");
+
+  //   try {
+  //     await _firestore.collection("users").doc(user.uid).collection("vehicles").add(vehicleData);
+  //     print("✅ Vehicle added successfully.");
+  //   } catch (e) {
+  //     print("❌ Error adding vehicle: $e");
+  //     throw Exception("Failed to add vehicle.");
+  //   }
+  // }
 
   /// Updates an existing vehicle in Firestore
-  Future<void> updateVehicle({
-    required String vehicleId,
-    required Map<String, dynamic> vehicleData, // Pass the whole vehicle map
-  }) async {
-    try {
-      String? userId = FirebaseAuth.instance.currentUser?.uid;
-      if (userId == null) throw Exception("User not logged in");
-
-      await FirebaseFirestore.instance
-          .collection("users")
-          .doc(userId)
-          .collection("vehicles")
-          .doc(vehicleId)
-          .update(vehicleData); // Update with the whole map
-
-      print("Vehicle Updated Successfully!");
-    } catch (e) {
-      print("Error updating vehicle: $e");
-      throw Exception("Failed to update vehicle.");
-    }
+  Future<void> updateVehicle({required String vehicleId, required Map<String, dynamic> vehicleData}) async {
+    await _firestore.collection("vehicles").doc(vehicleId).update(vehicleData);
   }
+
+
+  // /// Updates an existing vehicle in Firestore
+  // Future<void> updateVehicle({
+  //   required String vehicleId,
+  //   required Map<String, dynamic> vehicleData, // Pass the whole vehicle map
+  // }) async {
+  //   try {
+  //     String? userId = FirebaseAuth.instance.currentUser?.uid;
+  //     if (userId == null) throw Exception("User not logged in");
+
+  //     await FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(userId)
+  //         .collection("vehicles")
+  //         .doc(vehicleId)
+  //         .update(vehicleData); // Update with the whole map
+
+  //     print("Vehicle Updated Successfully!");
+  //   } catch (e) {
+  //     print("Error updating vehicle: $e");
+  //     throw Exception("Failed to update vehicle.");
+  //   }
+  // }
 
   /// 🔹 **Deletes a vehicle from Firestore**
   Future<void> deleteVehicle(String vehicleId) async {

@@ -19,13 +19,13 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
   final FirebaseFunctions _firebaseFunctions = FirebaseFunctions(); // Firebase interaction instance
 
   // Controllers for text fields
-  final TextEditingController _makeController = TextEditingController();
-  final TextEditingController _modelController = TextEditingController();
-  final TextEditingController _yearController = TextEditingController();
-  final TextEditingController _colorController = TextEditingController();
-  final TextEditingController _licenseNumberController = TextEditingController();
-  final TextEditingController _registrationNumberController = TextEditingController();
-  final TextEditingController _seatingCapacityController = TextEditingController();
+  final TextEditingController _makeController = TextEditingController(text: 'Maruti');
+  final TextEditingController _modelController = TextEditingController(text: 'Swift');
+  final TextEditingController _yearController = TextEditingController(text: '2010');
+  final TextEditingController _colorController = TextEditingController(text: 'White');
+  final TextEditingController _licenseNumberController = TextEditingController(text: '1234');
+  final TextEditingController _registrationNumberController = TextEditingController(text: '12345');
+  final TextEditingController _seatingCapacityController = TextEditingController(text: '5');
 
   // Image paths for vehicle & registration document
   String? _vehicleImage;
