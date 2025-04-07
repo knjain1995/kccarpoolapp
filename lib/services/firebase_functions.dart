@@ -614,7 +614,7 @@ class FirebaseFunctions {
     if (user == null) throw Exception("No authenticated user found.");
 
     try {
-      await _firestore.collection("users").doc(user.uid).collection("vehicles").doc(vehicleId).delete();
+      await _firestore.collection("vehicles").doc(vehicleId).delete();
       print("✅ Vehicle deleted successfully.");
     } catch (e) {
       print("❌ Error deleting vehicle: $e");
