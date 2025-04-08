@@ -864,29 +864,43 @@ class FirebaseFunctions {
 
   /// 🔍 Fetches a specific vehicle by its ID
   Future<Map<String, dynamic>?> getVehicleById(String vehicleId) async {
-    String? userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) throw Exception("User not logged in");
-
     try {
-      DocumentSnapshot vehicleDoc = await FirebaseFirestore.instance
-          .collection("users")
-          .doc(userId)
-          .collection("vehicles")
-          .doc(vehicleId)
-          .get();
-
-      if (vehicleDoc.exists) {
-        Map<String, dynamic> data = vehicleDoc.data() as Map<String, dynamic>;
-        data["id"] = vehicleDoc.id; // Include document ID
-        return data;
-      } else {
-        return null;
+      final doc = await _firestore.collection('vehicles').doc(vehicleId).get();
+      if (doc.exists) {
+        return {
+          ...doc.data()!,
+          "id": doc.id,
+        };
       }
     } catch (e) {
       print("Error fetching vehicle by ID: $e");
-      return null;
     }
+    return null;
   }
+  // Future<Map<String, dynamic>?> getVehicleById(String vehicleId) async {
+  //   String? userId = FirebaseAuth.instance.currentUser?.uid;
+  //   if (userId == null) throw Exception("User not logged in");
+
+  //   try {
+  //     DocumentSnapshot vehicleDoc = await FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(userId)
+  //         .collection("vehicles")
+  //         .doc(vehicleId)
+  //         .get();
+
+  //     if (vehicleDoc.exists) {
+  //       Map<String, dynamic> data = vehicleDoc.data() as Map<String, dynamic>;
+  //       data["id"] = vehicleDoc.id; // Include document ID
+  //       return data;
+  //     } else {
+  //       return null;
+  //     }
+  //   } catch (e) {
+  //     print("Error fetching vehicle by ID: $e");
+  //     return null;
+  //   }
+  // }
 
   /// Fetches driver info by ID from the flat `users` collection only.
   Future<Map<String, dynamic>?> getDriverById({
