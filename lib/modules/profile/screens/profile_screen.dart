@@ -116,8 +116,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _deleteFamilyMember(String memberId) async {
     bool confirmDelete = await _showDeleteConfirmationDialog();
     if (confirmDelete) {
-      await _firebaseFunctions.deleteFamilyMember(memberId);
-      _loadFamilyMembers(); // Refresh list after deletion
+      try {
+        await _firebaseFunctions.deleteFamilyMemberFromUsers(memberId);
+        await _loadFamilyMembers(); // Refresh list after deletion
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Family member deleted.")));
+      } catch (e) {
+        print("Error deleting family member: $e");
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error deleting family member.")));
+      }
     }
   }
 

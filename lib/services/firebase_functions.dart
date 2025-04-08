@@ -411,48 +411,91 @@ class FirebaseFunctions {
     }
   }
 
-  /// Deletes a family member from Firestore
-  Future<void> deleteFamilyMember(String memberId) async {
-    User? user = _auth.currentUser;
-    if (user == null) return;
+  // /// Deletes a family member from Firestore
+  // Future<void> deleteFamilyMember(String memberId) async {
+  //   User? user = _auth.currentUser;
+  //   if (user == null) return;
 
+  //   try {
+  //     await _firestore.collection("users").doc(user.uid).collection("family").doc(memberId).delete();
+  //     print("Family member deleted successfully.");
+  //   } catch (e) {
+  //     print("Error deleting family member: $e");
+  //   }
+  // }
+
+  /// Deletes a family member from Firestore.
+  ///
+  /// This function removes the user document from the top-level `users` collection
+  /// and also removes their UID from the `memberUserIds` array in the corresponding
+  /// family document.
+  Future<void> deleteFamilyMemberFromUsers(String memberId) async {
     try {
-      await _firestore.collection("users").doc(user.uid).collection("family").doc(memberId).delete();
-      print("Family member deleted successfully.");
+      final userDocRef = FirebaseFirestore.instance.collection('users').doc(memberId);
+      final userSnapshot = await userDocRef.get();
+
+      if (!userSnapshot.exists) {
+        throw Exception("User not found with ID: $memberId");
+      }
+
+      final userData = userSnapshot.data();
+      if (userData == null || !userData.containsKey('familyId')) {
+        throw Exception("Family ID not found for user: $memberId");
+      }
+
+      final String familyId = userData['familyId'];
+      final familyDocRef = FirebaseFirestore.instance.collection('families').doc(familyId);
+
+      // ✅ Start a batch operation to ensure atomicity
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      // 1. Delete the user document
+      batch.delete(userDocRef);
+
+      // 2. Remove their ID from the `memberUserIds` array in the corresponding family document
+      batch.update(familyDocRef, {
+        'memberUserIds': FieldValue.arrayRemove([memberId])
+      });
+
+      // ✅ Commit the batch
+      await batch.commit();
     } catch (e) {
       print("Error deleting family member: $e");
+      rethrow;
     }
   }
 
-  /// Fetches family members and vehicles of the logged-in user
-  Future<Map<String, dynamic>> fetchFamilyAndVehicles() async {
-    String? userId = getCurrentUserId();
-    if (userId == null) throw Exception("No authenticated user found.");
 
-    List<Map<String, dynamic>> familyMembers = [];
-    List<Map<String, dynamic>> vehicles = [];
 
-    try {
-      // Fetch family members
-      QuerySnapshot familySnapshot =
-          await _firestore.collection("users").doc(userId).collection("family").get();
-      for (var doc in familySnapshot.docs) {
-        familyMembers.add(doc.data() as Map<String, dynamic>);
-      }
+  // /// Fetches family members and vehicles of the logged-in user
+  // Future<Map<String, dynamic>> fetchFamilyAndVehicles() async {
+  //   String? userId = getCurrentUserId();
+  //   if (userId == null) throw Exception("No authenticated user found.");
 
-      // Fetch vehicles
-      QuerySnapshot vehicleSnapshot =
-          await _firestore.collection("users").doc(userId).collection("vehicles").get();
-      for (var doc in vehicleSnapshot.docs) {
-        vehicles.add(doc.data() as Map<String, dynamic>);
-      }
+  //   List<Map<String, dynamic>> familyMembers = [];
+  //   List<Map<String, dynamic>> vehicles = [];
 
-      return {"family": familyMembers, "vehicles": vehicles};
-    } catch (e) {
-      print("Error fetching family & vehicles: $e");
-      throw Exception("Failed to fetch data.");
-    }
-  }
+  //   try {
+  //     // Fetch family members
+  //     QuerySnapshot familySnapshot =
+  //         await _firestore.collection("users").doc(userId).collection("family").get();
+  //     for (var doc in familySnapshot.docs) {
+  //       familyMembers.add(doc.data() as Map<String, dynamic>);
+  //     }
+
+  //     // Fetch vehicles
+  //     QuerySnapshot vehicleSnapshot =
+  //         await _firestore.collection("users").doc(userId).collection("vehicles").get();
+  //     for (var doc in vehicleSnapshot.docs) {
+  //       vehicles.add(doc.data() as Map<String, dynamic>);
+  //     }
+
+  //     return {"family": familyMembers, "vehicles": vehicles};
+  //   } catch (e) {
+  //     print("Error fetching family & vehicles: $e");
+  //     throw Exception("Failed to fetch data.");
+  //   }
+  // }
 
   /// Updates an existing family member (flat model under /users collection)
   Future<void> updateFamilyMemberInUsers({
