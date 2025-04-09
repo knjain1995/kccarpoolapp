@@ -3782,19 +3782,18 @@ class FirebaseFunctions {
     bool? carpoolReturnStayOnLocation,
   }) async {
     try {
-      // Reference to the logged-in user's Firestore document
-      String userId = FirebaseAuth.instance.currentUser!.uid;
-      CollectionReference carpoolCollection = FirebaseFirestore.instance
-          .collection("users")
-          .doc(userId)
-          .collection("carpools");
+      // Get the user's familyId from their user document
+      DocumentSnapshot userDoc = await _firestore.collection("users").doc(carpoolOwnerId).get();
+      if (!userDoc.exists) throw Exception("User not found.");
 
-      // Generate a unique carpool ID
-      String carpoolId = carpoolCollection.doc().id;
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final String familyId = userData["familyId"];
 
-      // Create the carpool document
-      await carpoolCollection.doc(carpoolId).set({
-        "carpoolId": carpoolId,
+      // Generate a new document in the flat 'carpools' collection
+      DocumentReference carpoolDoc = _firestore.collection("carpools").doc();
+
+      await carpoolDoc.set({
+        "carpoolId": carpoolDoc.id,
         "carpoolName": carpoolName,
         "carpoolRouteStart": carpoolRouteStart,
         "carpoolRouteEnd": carpoolRouteEnd,
@@ -3806,54 +3805,143 @@ class FirebaseFunctions {
         "carpoolParticipants": carpoolParticipants,
         "carpoolCapacity": carpoolCapacity,
         "carpoolReturnTrip": carpoolReturnTrip,
-        "carpoolReturnStayOnLocation": carpoolReturnStayOnLocation ?? false,
+        "carpoolReturnStayOnLocation": carpoolReturnTrip ? carpoolReturnStayOnLocation ?? false : null,
         "carpoolStatus": "Available",
-        "createdAt": FieldValue.serverTimestamp(), // Track creation time
+        "createdAt": FieldValue.serverTimestamp(),
+
+        // ✅ New field for visibility and future invite logic
+        "familyId": familyId,
       });
-      print("✅ Carpool successfully created!");
+
+      print("✅ Carpool successfully created in flat structure!");
     } catch (e) {
       print("🔥 Error creating carpool: $e");
       throw Exception("Failed to create carpool.");
     }
   }
+  // Future<void> createCarpool({
+  //   required String carpoolName,
+  //   required String carpoolRouteStart,
+  //   required String carpoolRouteEnd,
+  //   required Timestamp carpoolDate,
+  //   required Timestamp carpoolTime,
+  //   required String carpoolVehicleId,
+  //   required String carpoolOwnerId,
+  //   required String carpoolDriverId,
+  //   required List<String> carpoolParticipants,
+  //   required int carpoolCapacity,
+  //   required bool carpoolReturnTrip,
+  //   bool? carpoolReturnStayOnLocation,
+  // }) async {
+  //   try {
+  //     // Reference to the logged-in user's Firestore document
+  //     String userId = FirebaseAuth.instance.currentUser!.uid;
+  //     CollectionReference carpoolCollection = FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(userId)
+  //         .collection("carpools");
 
-  /// Fetches all carpools for the logged-in user
+  //     // Generate a unique carpool ID
+  //     String carpoolId = carpoolCollection.doc().id;
+
+  //     // Create the carpool document
+  //     await carpoolCollection.doc(carpoolId).set({
+  //       "carpoolId": carpoolId,
+  //       "carpoolName": carpoolName,
+  //       "carpoolRouteStart": carpoolRouteStart,
+  //       "carpoolRouteEnd": carpoolRouteEnd,
+  //       "carpoolDate": carpoolDate,
+  //       "carpoolTime": carpoolTime,
+  //       "carpoolVehicleId": carpoolVehicleId,
+  //       "carpoolOwnerId": carpoolOwnerId,
+  //       "carpoolDriverId": carpoolDriverId,
+  //       "carpoolParticipants": carpoolParticipants,
+  //       "carpoolCapacity": carpoolCapacity,
+  //       "carpoolReturnTrip": carpoolReturnTrip,
+  //       "carpoolReturnStayOnLocation": carpoolReturnStayOnLocation ?? false,
+  //       "carpoolStatus": "Available",
+  //       "createdAt": FieldValue.serverTimestamp(), // Track creation time
+  //     });
+  //     print("✅ Carpool successfully created!");
+  //   } catch (e) {
+  //     print("🔥 Error creating carpool: $e");
+  //     throw Exception("Failed to create carpool.");
+  //   }
+  // }
+
+  /// 🔄 Fetches all carpools visible to the current user's family
+  /// ✅ Uses the new flat Firestore structure: /carpools collection
+  /// ✅ Only shows carpools where familyId matches the logged-in user
   Future<List<Map<String, dynamic>>> getCarpools() async {
     try {
-      // Get logged-in user's ID
-      String userId = FirebaseAuth.instance.currentUser!.uid;
-      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection("users")
-          .doc(userId)
+      // 🔹 Get the current user’s UID (logged-in user)
+      final String userId = FirebaseAuth.instance.currentUser!.uid;
+
+      // 🔹 Fetch their full user document from Firestore
+      final DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection("users").doc(userId).get();
+
+      // 🚨 Safety check: If user document doesn’t exist, stop
+      if (!userDoc.exists) {
+        throw Exception("User document not found.");
+      }
+
+      // 🔹 Get the user's familyId (used to filter visible carpools)
+      final String familyId = (userDoc.data() as Map<String, dynamic>)["familyId"];
+
+      // 🔍 Fetch all carpools in the same family, ordered by date
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection("carpools")
-          .orderBy("carpoolDate", descending: false) // Order by date
+          .where("familyId", isEqualTo: familyId) // Filter by family group
+          .orderBy("carpoolDate", descending: false) // Sort by upcoming date
           .get();
 
-      // Convert documents into a list of maps
-      List<Map<String, dynamic>> carpools = querySnapshot.docs
-          .map((doc) => {"id": doc.id, ...doc.data() as Map<String, dynamic>})
-          .toList();
-
-      return carpools;
+      // 🔄 Convert each document into a usable map and return as a list
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data["carpoolId"] = doc.id; // Include Firestore ID
+        return data;
+      }).toList();
     } catch (e) {
       print("🔥 Error fetching carpools: $e");
       throw Exception("Failed to fetch carpools.");
     }
   }
 
-  /// Updates an existing carpool in Firestore
+  // /// Updates an existing carpool in Firestore
+  // Future<void> updateCarpool({
+  //   required String carpoolId,
+  //   required Map<String, dynamic> updatedData,
+  // }) async {
+  //   try {
+  //     String userId = FirebaseAuth.instance.currentUser!.uid;
+  //     await FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(userId)
+  //         .collection("carpools")
+  //         .doc(carpoolId)
+  //         .update(updatedData);
+
+  //     print("✅ Carpool successfully updated!");
+  //   } catch (e) {
+  //     print("🔥 Error updating carpool: $e");
+  //     throw Exception("Failed to update carpool.");
+  //   }
+  // }
+
+  /// 🔁 Updates an existing carpool in the flat `/carpools` collection.
+  /// Only the `carpoolOwnerId` is allowed to update it (enforced by Firestore rules).
   Future<void> updateCarpool({
-    required String carpoolId,
-    required Map<String, dynamic> updatedData,
+    required String carpoolId,                 // 🆔 Firestore document ID of the carpool
+    required Map<String, dynamic> updatedData, // 🧾 Fields to update (from UI form)
   }) async {
     try {
-      String userId = FirebaseAuth.instance.currentUser!.uid;
-      await FirebaseFirestore.instance
-          .collection("users")
-          .doc(userId)
-          .collection("carpools")
-          .doc(carpoolId)
-          .update(updatedData);
+      // 🔹 Reference to the carpool document directly in the top-level collection
+      final DocumentReference carpoolRef =
+          FirebaseFirestore.instance.collection("carpools").doc(carpoolId);
+
+      // 🛠️ Update the document with new values (merged fields)
+      await carpoolRef.update(updatedData);
 
       print("✅ Carpool successfully updated!");
     } catch (e) {
@@ -3861,6 +3949,7 @@ class FirebaseFunctions {
       throw Exception("Failed to update carpool.");
     }
   }
+
 
   /// Deletes a carpool from Firestores
   Future<void> deleteCarpool(String carpoolId) async {

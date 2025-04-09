@@ -857,19 +857,40 @@ class FirebaseFunctions {
     }
   }
 
-  /// Updates an existing carpool in Firestore
+  // /// Updates an existing carpool in Firestore
+  // Future<void> updateCarpool({
+  //   required String carpoolId,
+  //   required Map<String, dynamic> updatedData,
+  // }) async {
+  //   try {
+  //     String userId = FirebaseAuth.instance.currentUser!.uid;
+  //     await FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(userId)
+  //         .collection("carpools")
+  //         .doc(carpoolId)
+  //         .update(updatedData);
+
+  //     print("✅ Carpool successfully updated!");
+  //   } catch (e) {
+  //     print("🔥 Error updating carpool: $e");
+  //     throw Exception("Failed to update carpool.");
+  //   }
+  // }
+
+  /// 🔁 Updates an existing carpool in the flat `/carpools` collection.
+  /// Only the `carpoolOwnerId` is allowed to update it (enforced by Firestore rules).
   Future<void> updateCarpool({
-    required String carpoolId,
-    required Map<String, dynamic> updatedData,
+    required String carpoolId,                 // 🆔 Firestore document ID of the carpool
+    required Map<String, dynamic> updatedData, // 🧾 Fields to update (from UI form)
   }) async {
     try {
-      String userId = FirebaseAuth.instance.currentUser!.uid;
-      await FirebaseFirestore.instance
-          .collection("users")
-          .doc(userId)
-          .collection("carpools")
-          .doc(carpoolId)
-          .update(updatedData);
+      // 🔹 Reference to the carpool document directly in the top-level collection
+      final DocumentReference carpoolRef =
+          FirebaseFirestore.instance.collection("carpools").doc(carpoolId);
+
+      // 🛠️ Update the document with new values (merged fields)
+      await carpoolRef.update(updatedData);
 
       print("✅ Carpool successfully updated!");
     } catch (e) {
@@ -877,6 +898,7 @@ class FirebaseFunctions {
       throw Exception("Failed to update carpool.");
     }
   }
+
 
   /// Deletes a carpool from Firestores
   Future<void> deleteCarpool(String carpoolId) async {
@@ -896,38 +918,69 @@ class FirebaseFunctions {
     }
   }
 
-  /// Checks if a vehicle is already booked for a given date and time
+  // /// Checks if a vehicle is already booked for a given date and time
+  // Future<bool> isVehicleAvailable({
+  //   required String vehicleId,
+  //   required Timestamp carpoolDate,
+  //   required Timestamp carpoolTime,
+  // }) async {
+  //   try {
+  //     String userId = FirebaseAuth.instance.currentUser!.uid;
+
+  //     QuerySnapshot snapshot = await FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(userId)
+  //         .collection("carpools")
+  //         .where("carpoolVehicleId", isEqualTo: vehicleId)
+  //         .where("carpoolDate", isEqualTo: carpoolDate)
+  //         .get();
+
+  //     for (var doc in snapshot.docs) {
+  //       Timestamp existingTime = doc["carpoolTime"];
+  //       // We assume exact match is a conflict. Later we can add buffer/overlap logic.
+  //       if (existingTime.toDate().hour == carpoolTime.toDate().hour &&
+  //           existingTime.toDate().minute == carpoolTime.toDate().minute) {
+  //         return false; // Conflict found
+  //       }
+  //     }
+
+  //     return true; // No conflicts found
+  //   } catch (e) {
+  //     print("Error checking vehicle availability: $e");
+  //     throw Exception("Failed to check vehicle availability.");
+  //   }
+  // }
+
+  /// 🔍 Checks if the given vehicle is available at the given date and time.
+  /// ✅ Uses the flat /carpools collection instead of old nested path.
   Future<bool> isVehicleAvailable({
     required String vehicleId,
     required Timestamp carpoolDate,
     required Timestamp carpoolTime,
   }) async {
     try {
-      String userId = FirebaseAuth.instance.currentUser!.uid;
-
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection("users")
-          .doc(userId)
-          .collection("carpools")
-          .where("carpoolVehicleId", isEqualTo: vehicleId)
-          .where("carpoolDate", isEqualTo: carpoolDate)
+      // 🔍 Query top-level 'carpools' collection for any overlap on the same date & vehicle
+      final query = await FirebaseFirestore.instance
+          .collection('carpools')
+          .where('carpoolVehicleId', isEqualTo: vehicleId)
+          .where('carpoolDate', isEqualTo: carpoolDate)
           .get();
 
-      for (var doc in snapshot.docs) {
-        Timestamp existingTime = doc["carpoolTime"];
-        // We assume exact match is a conflict. Later we can add buffer/overlap logic.
-        if (existingTime.toDate().hour == carpoolTime.toDate().hour &&
-            existingTime.toDate().minute == carpoolTime.toDate().minute) {
-          return false; // Conflict found
+      // 🔁 Check if any entry already exists at the exact same time
+      for (var doc in query.docs) {
+        final data = doc.data();
+        if (data['carpoolTime'] == carpoolTime) {
+          return false; // 🚫 Vehicle already booked at this time
         }
       }
 
-      return true; // No conflicts found
+      return true; // ✅ No conflict, vehicle is available
     } catch (e) {
-      print("Error checking vehicle availability: $e");
+      print("🔥 Error checking vehicle availability: $e");
       throw Exception("Failed to check vehicle availability.");
     }
   }
+
 
   /// 🔍 Fetches a specific vehicle by its ID
   Future<Map<String, dynamic>?> getVehicleById(String vehicleId) async {
