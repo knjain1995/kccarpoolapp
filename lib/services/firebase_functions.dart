@@ -731,19 +731,18 @@ class FirebaseFunctions {
     bool? carpoolReturnStayOnLocation,
   }) async {
     try {
-      // Reference to the logged-in user's Firestore document
-      String userId = FirebaseAuth.instance.currentUser!.uid;
-      CollectionReference carpoolCollection = FirebaseFirestore.instance
-          .collection("users")
-          .doc(userId)
-          .collection("carpools");
+      // Get the user's familyId from their user document
+      DocumentSnapshot userDoc = await _firestore.collection("users").doc(carpoolOwnerId).get();
+      if (!userDoc.exists) throw Exception("User not found.");
 
-      // Generate a unique carpool ID
-      String carpoolId = carpoolCollection.doc().id;
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final String familyId = userData["familyId"];
 
-      // Create the carpool document
-      await carpoolCollection.doc(carpoolId).set({
-        "carpoolId": carpoolId,
+      // Generate a new document in the flat 'carpools' collection
+      DocumentReference carpoolDoc = _firestore.collection("carpools").doc();
+
+      await carpoolDoc.set({
+        "carpoolId": carpoolDoc.id,
         "carpoolName": carpoolName,
         "carpoolRouteStart": carpoolRouteStart,
         "carpoolRouteEnd": carpoolRouteEnd,
@@ -755,16 +754,69 @@ class FirebaseFunctions {
         "carpoolParticipants": carpoolParticipants,
         "carpoolCapacity": carpoolCapacity,
         "carpoolReturnTrip": carpoolReturnTrip,
-        "carpoolReturnStayOnLocation": carpoolReturnStayOnLocation ?? false,
+        "carpoolReturnStayOnLocation": carpoolReturnTrip ? carpoolReturnStayOnLocation ?? false : null,
         "carpoolStatus": "Available",
-        "createdAt": FieldValue.serverTimestamp(), // Track creation time
+        "createdAt": FieldValue.serverTimestamp(),
+
+        // ✅ New field for visibility and future invite logic
+        "familyId": familyId,
       });
-      print("✅ Carpool successfully created!");
+
+      print("✅ Carpool successfully created in flat structure!");
     } catch (e) {
       print("🔥 Error creating carpool: $e");
       throw Exception("Failed to create carpool.");
     }
   }
+  // Future<void> createCarpool({
+  //   required String carpoolName,
+  //   required String carpoolRouteStart,
+  //   required String carpoolRouteEnd,
+  //   required Timestamp carpoolDate,
+  //   required Timestamp carpoolTime,
+  //   required String carpoolVehicleId,
+  //   required String carpoolOwnerId,
+  //   required String carpoolDriverId,
+  //   required List<String> carpoolParticipants,
+  //   required int carpoolCapacity,
+  //   required bool carpoolReturnTrip,
+  //   bool? carpoolReturnStayOnLocation,
+  // }) async {
+  //   try {
+  //     // Reference to the logged-in user's Firestore document
+  //     String userId = FirebaseAuth.instance.currentUser!.uid;
+  //     CollectionReference carpoolCollection = FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(userId)
+  //         .collection("carpools");
+
+  //     // Generate a unique carpool ID
+  //     String carpoolId = carpoolCollection.doc().id;
+
+  //     // Create the carpool document
+  //     await carpoolCollection.doc(carpoolId).set({
+  //       "carpoolId": carpoolId,
+  //       "carpoolName": carpoolName,
+  //       "carpoolRouteStart": carpoolRouteStart,
+  //       "carpoolRouteEnd": carpoolRouteEnd,
+  //       "carpoolDate": carpoolDate,
+  //       "carpoolTime": carpoolTime,
+  //       "carpoolVehicleId": carpoolVehicleId,
+  //       "carpoolOwnerId": carpoolOwnerId,
+  //       "carpoolDriverId": carpoolDriverId,
+  //       "carpoolParticipants": carpoolParticipants,
+  //       "carpoolCapacity": carpoolCapacity,
+  //       "carpoolReturnTrip": carpoolReturnTrip,
+  //       "carpoolReturnStayOnLocation": carpoolReturnStayOnLocation ?? false,
+  //       "carpoolStatus": "Available",
+  //       "createdAt": FieldValue.serverTimestamp(), // Track creation time
+  //     });
+  //     print("✅ Carpool successfully created!");
+  //   } catch (e) {
+  //     print("🔥 Error creating carpool: $e");
+  //     throw Exception("Failed to create carpool.");
+  //   }
+  // }
 
   /// Fetches all carpools for the logged-in user
   Future<List<Map<String, dynamic>>> getCarpools() async {
