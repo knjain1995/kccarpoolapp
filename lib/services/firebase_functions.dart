@@ -818,24 +818,39 @@ class FirebaseFunctions {
   //   }
   // }
 
-  /// Fetches all carpools for the logged-in user
+  /// 🔄 Fetches all carpools visible to the current user's family
+  /// ✅ Uses the new flat Firestore structure: /carpools collection
+  /// ✅ Only shows carpools where familyId matches the logged-in user
   Future<List<Map<String, dynamic>>> getCarpools() async {
     try {
-      // Get logged-in user's ID
-      String userId = FirebaseAuth.instance.currentUser!.uid;
-      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection("users")
-          .doc(userId)
+      // 🔹 Get the current user’s UID (logged-in user)
+      final String userId = FirebaseAuth.instance.currentUser!.uid;
+
+      // 🔹 Fetch their full user document from Firestore
+      final DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection("users").doc(userId).get();
+
+      // 🚨 Safety check: If user document doesn’t exist, stop
+      if (!userDoc.exists) {
+        throw Exception("User document not found.");
+      }
+
+      // 🔹 Get the user's familyId (used to filter visible carpools)
+      final String familyId = (userDoc.data() as Map<String, dynamic>)["familyId"];
+
+      // 🔍 Fetch all carpools in the same family, ordered by date
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection("carpools")
-          .orderBy("carpoolDate", descending: false) // Order by date
+          .where("familyId", isEqualTo: familyId) // Filter by family group
+          .orderBy("carpoolDate", descending: false) // Sort by upcoming date
           .get();
 
-      // Convert documents into a list of maps
-      List<Map<String, dynamic>> carpools = querySnapshot.docs
-          .map((doc) => {"id": doc.id, ...doc.data() as Map<String, dynamic>})
-          .toList();
-
-      return carpools;
+      // 🔄 Convert each document into a usable map and return as a list
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data["carpoolId"] = doc.id; // Include Firestore ID
+        return data;
+      }).toList();
     } catch (e) {
       print("🔥 Error fetching carpools: $e");
       throw Exception("Failed to fetch carpools.");
