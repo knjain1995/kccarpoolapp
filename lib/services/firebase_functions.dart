@@ -899,24 +899,42 @@ class FirebaseFunctions {
     }
   }
 
-
-  /// Deletes a carpool from Firestores
+  /// 🗑️ Deletes a carpool from the top-level /carpools collection.
+  ///
+  /// 🔐 Only the carpoolOwnerId (creator) is allowed to delete it.
+  /// 📄 Firestore rules ensure this authorization.
   Future<void> deleteCarpool(String carpoolId) async {
     try {
-      String userId = FirebaseAuth.instance.currentUser!.uid;
-      await FirebaseFirestore.instance
-          .collection("users")
-          .doc(userId)
-          .collection("carpools")
-          .doc(carpoolId)
-          .delete();
+      // 🔹 Directly reference the carpool document using flat structure
+      final carpoolRef = FirebaseFirestore.instance.collection("carpools").doc(carpoolId);
 
-      print("✅ Carpool successfully deleted!");
+      // 🔥 Delete the document
+      await carpoolRef.delete();
+
+      print("✅ Carpool deleted successfully.");
     } catch (e) {
       print("🔥 Error deleting carpool: $e");
       throw Exception("Failed to delete carpool.");
     }
   }
+
+  // /// Deletes a carpool from Firestores
+  // Future<void> deleteCarpool(String carpoolId) async {
+  //   try {
+  //     String userId = FirebaseAuth.instance.currentUser!.uid;
+  //     await FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(userId)
+  //         .collection("carpools")
+  //         .doc(carpoolId)
+  //         .delete();
+
+  //     print("✅ Carpool successfully deleted!");
+  //   } catch (e) {
+  //     print("🔥 Error deleting carpool: $e");
+  //     throw Exception("Failed to delete carpool.");
+  //   }
+  // }
 
   // /// Checks if a vehicle is already booked for a given date and time
   // Future<bool> isVehicleAvailable({
