@@ -411,19 +411,6 @@ class FirebaseFunctions {
     }
   }
 
-  // /// Deletes a family member from Firestore
-  // Future<void> deleteFamilyMember(String memberId) async {
-  //   User? user = _auth.currentUser;
-  //   if (user == null) return;
-
-  //   try {
-  //     await _firestore.collection("users").doc(user.uid).collection("family").doc(memberId).delete();
-  //     print("Family member deleted successfully.");
-  //   } catch (e) {
-  //     print("Error deleting family member: $e");
-  //   }
-  // }
-
   /// Deletes a family member from Firestore.
   ///
   /// This function removes the user document from the top-level `users` collection
@@ -464,38 +451,6 @@ class FirebaseFunctions {
       rethrow;
     }
   }
-
-
-
-  // /// Fetches family members and vehicles of the logged-in user
-  // Future<Map<String, dynamic>> fetchFamilyAndVehicles() async {
-  //   String? userId = getCurrentUserId();
-  //   if (userId == null) throw Exception("No authenticated user found.");
-
-  //   List<Map<String, dynamic>> familyMembers = [];
-  //   List<Map<String, dynamic>> vehicles = [];
-
-  //   try {
-  //     // Fetch family members
-  //     QuerySnapshot familySnapshot =
-  //         await _firestore.collection("users").doc(userId).collection("family").get();
-  //     for (var doc in familySnapshot.docs) {
-  //       familyMembers.add(doc.data() as Map<String, dynamic>);
-  //     }
-
-  //     // Fetch vehicles
-  //     QuerySnapshot vehicleSnapshot =
-  //         await _firestore.collection("users").doc(userId).collection("vehicles").get();
-  //     for (var doc in vehicleSnapshot.docs) {
-  //       vehicles.add(doc.data() as Map<String, dynamic>);
-  //     }
-
-  //     return {"family": familyMembers, "vehicles": vehicles};
-  //   } catch (e) {
-  //     print("Error fetching family & vehicles: $e");
-  //     throw Exception("Failed to fetch data.");
-  //   }
-  // }
 
   /// Updates an existing family member (flat model under /users collection)
   Future<void> updateFamilyMemberInUsers({
@@ -542,53 +497,6 @@ class FirebaseFunctions {
     await docRef.update(data);
   }
 
-
-  // /// ✅ Updates an existing family member in Firestore
-  // Future<void> updateFamilyMember({
-  //   required String memberId,
-  //   required String fullName,
-  //   required String? email,
-  //   required String? phoneNumber,
-  //   required bool isAdult,
-  //   DateTime? dateOfBirth,
-  //   required String profilePhoto,
-  //   required String govId,
-  //   String? schoolId,
-  //   String? schoolName,
-  //   String? schoolIdNo,
-  //   String? grade,
-  //   String? driverLicense,
-  //   required String address,
-  //   String? gender,
-  //   String? relationToChild,
-  // }) async {
-  //   String? userId = getCurrentUserId();
-  //   if (userId == null) throw Exception("No authenticated user found.");
-
-  //   try {
-  //     await _firestore.collection("users").doc(userId).collection("family").doc(memberId).update({
-  //       "fullName": fullName,
-  //       "email": email ?? "",
-  //       "phoneNumber": phoneNumber ?? "",
-  //       "isAdult": isAdult,
-  //       "dateOfBirth": isAdult ? null : Timestamp.fromDate(dateOfBirth!),
-  //       "profilePhoto": profilePhoto,
-  //       "govId": govId,
-  //       "driverLicense": isAdult ? driverLicense ?? "" : null,
-  //       "schoolId": isAdult ? null : schoolId ?? "",
-  //       "schoolName": isAdult ? null : schoolName ?? "",
-  //       "schoolIdNo": isAdult ? null : schoolIdNo ?? "",
-  //       "grade": isAdult ? null : grade ?? "",
-  //       "address": address,
-  //       "gender": isAdult ? null : gender,
-  //       "relationToChild": relationToChild,
-  //     });
-  //   } catch (e) {
-  //     print("Error updating family member: $e");
-  //     throw Exception("Failed to update family member.");
-  //   }
-  // }
-
   /// Adds a new vehicle to the top-level vehicles collection
   Future<void> addVehicle(Map<String, dynamic> vehicleData) async {
     final currentUser = _auth.currentUser;
@@ -608,48 +516,10 @@ class FirebaseFunctions {
     await _firestore.collection("vehicles").add(vehicleData);
   }
 
-  // /// 🔹 **Adds a new vehicle to Firestore**
-  // Future<void> addVehicle(Map<String, dynamic> vehicleData) async {
-  //   User? user = _auth.currentUser;
-  //   if (user == null) throw Exception("No authenticated user found.");
-
-  //   try {
-  //     await _firestore.collection("users").doc(user.uid).collection("vehicles").add(vehicleData);
-  //     print("✅ Vehicle added successfully.");
-  //   } catch (e) {
-  //     print("❌ Error adding vehicle: $e");
-  //     throw Exception("Failed to add vehicle.");
-  //   }
-  // }
-
   /// Updates an existing vehicle in Firestore
   Future<void> updateVehicle({required String vehicleId, required Map<String, dynamic> vehicleData}) async {
     await _firestore.collection("vehicles").doc(vehicleId).update(vehicleData);
   }
-
-
-  // /// Updates an existing vehicle in Firestore
-  // Future<void> updateVehicle({
-  //   required String vehicleId,
-  //   required Map<String, dynamic> vehicleData, // Pass the whole vehicle map
-  // }) async {
-  //   try {
-  //     String? userId = FirebaseAuth.instance.currentUser?.uid;
-  //     if (userId == null) throw Exception("User not logged in");
-
-  //     await FirebaseFirestore.instance
-  //         .collection("users")
-  //         .doc(userId)
-  //         .collection("vehicles")
-  //         .doc(vehicleId)
-  //         .update(vehicleData); // Update with the whole map
-
-  //     print("Vehicle Updated Successfully!");
-  //   } catch (e) {
-  //     print("Error updating vehicle: $e");
-  //     throw Exception("Failed to update vehicle.");
-  //   }
-  // }
 
   /// 🔹 **Deletes a vehicle from Firestore**
   Future<void> deleteVehicle(String vehicleId) async {
@@ -688,32 +558,6 @@ class FirebaseFunctions {
 
     return vehicles;
   }
-
-
-
-
-  // /// 🔹 **Retrieves the list of vehicles for the logged-in user**
-  // Future<List<Map<String, dynamic>>> getVehicles() async {
-  //   User? user = _auth.currentUser;
-  //   if (user == null) throw Exception("No authenticated user found.");
-
-  //   try {
-  //     QuerySnapshot vehicleSnapshot =
-  //         await _firestore.collection("users").doc(user.uid).collection("vehicles").get();
-
-  //     List<Map<String, dynamic>> vehicles = vehicleSnapshot.docs.map((doc) {
-  //       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-  //       data["id"] = doc.id; // Include document ID for editing/deleting
-  //       return data;
-  //     }).toList();
-
-  //     return vehicles;
-  //   } catch (e) {
-  //     print("❌ Error fetching vehicles: $e");
-  //     throw Exception("Failed to retrieve vehicles.");
-  //   }
-  // }
-
 
   /// Creates a new carpool in Firestore
   Future<void> createCarpool({
@@ -768,55 +612,6 @@ class FirebaseFunctions {
       throw Exception("Failed to create carpool.");
     }
   }
-  // Future<void> createCarpool({
-  //   required String carpoolName,
-  //   required String carpoolRouteStart,
-  //   required String carpoolRouteEnd,
-  //   required Timestamp carpoolDate,
-  //   required Timestamp carpoolTime,
-  //   required String carpoolVehicleId,
-  //   required String carpoolOwnerId,
-  //   required String carpoolDriverId,
-  //   required List<String> carpoolParticipants,
-  //   required int carpoolCapacity,
-  //   required bool carpoolReturnTrip,
-  //   bool? carpoolReturnStayOnLocation,
-  // }) async {
-  //   try {
-  //     // Reference to the logged-in user's Firestore document
-  //     String userId = FirebaseAuth.instance.currentUser!.uid;
-  //     CollectionReference carpoolCollection = FirebaseFirestore.instance
-  //         .collection("users")
-  //         .doc(userId)
-  //         .collection("carpools");
-
-  //     // Generate a unique carpool ID
-  //     String carpoolId = carpoolCollection.doc().id;
-
-  //     // Create the carpool document
-  //     await carpoolCollection.doc(carpoolId).set({
-  //       "carpoolId": carpoolId,
-  //       "carpoolName": carpoolName,
-  //       "carpoolRouteStart": carpoolRouteStart,
-  //       "carpoolRouteEnd": carpoolRouteEnd,
-  //       "carpoolDate": carpoolDate,
-  //       "carpoolTime": carpoolTime,
-  //       "carpoolVehicleId": carpoolVehicleId,
-  //       "carpoolOwnerId": carpoolOwnerId,
-  //       "carpoolDriverId": carpoolDriverId,
-  //       "carpoolParticipants": carpoolParticipants,
-  //       "carpoolCapacity": carpoolCapacity,
-  //       "carpoolReturnTrip": carpoolReturnTrip,
-  //       "carpoolReturnStayOnLocation": carpoolReturnStayOnLocation ?? false,
-  //       "carpoolStatus": "Available",
-  //       "createdAt": FieldValue.serverTimestamp(), // Track creation time
-  //     });
-  //     print("✅ Carpool successfully created!");
-  //   } catch (e) {
-  //     print("🔥 Error creating carpool: $e");
-  //     throw Exception("Failed to create carpool.");
-  //   }
-  // }
 
   /// 🔄 Fetches all carpools visible to the current user's family
   /// ✅ Uses the new flat Firestore structure: /carpools collection
@@ -857,27 +652,6 @@ class FirebaseFunctions {
     }
   }
 
-  // /// Updates an existing carpool in Firestore
-  // Future<void> updateCarpool({
-  //   required String carpoolId,
-  //   required Map<String, dynamic> updatedData,
-  // }) async {
-  //   try {
-  //     String userId = FirebaseAuth.instance.currentUser!.uid;
-  //     await FirebaseFirestore.instance
-  //         .collection("users")
-  //         .doc(userId)
-  //         .collection("carpools")
-  //         .doc(carpoolId)
-  //         .update(updatedData);
-
-  //     print("✅ Carpool successfully updated!");
-  //   } catch (e) {
-  //     print("🔥 Error updating carpool: $e");
-  //     throw Exception("Failed to update carpool.");
-  //   }
-  // }
-
   /// 🔁 Updates an existing carpool in the flat `/carpools` collection.
   /// Only the `carpoolOwnerId` is allowed to update it (enforced by Firestore rules).
   Future<void> updateCarpool({
@@ -917,57 +691,6 @@ class FirebaseFunctions {
       throw Exception("Failed to delete carpool.");
     }
   }
-
-  // /// Deletes a carpool from Firestores
-  // Future<void> deleteCarpool(String carpoolId) async {
-  //   try {
-  //     String userId = FirebaseAuth.instance.currentUser!.uid;
-  //     await FirebaseFirestore.instance
-  //         .collection("users")
-  //         .doc(userId)
-  //         .collection("carpools")
-  //         .doc(carpoolId)
-  //         .delete();
-
-  //     print("✅ Carpool successfully deleted!");
-  //   } catch (e) {
-  //     print("🔥 Error deleting carpool: $e");
-  //     throw Exception("Failed to delete carpool.");
-  //   }
-  // }
-
-  // /// Checks if a vehicle is already booked for a given date and time
-  // Future<bool> isVehicleAvailable({
-  //   required String vehicleId,
-  //   required Timestamp carpoolDate,
-  //   required Timestamp carpoolTime,
-  // }) async {
-  //   try {
-  //     String userId = FirebaseAuth.instance.currentUser!.uid;
-
-  //     QuerySnapshot snapshot = await FirebaseFirestore.instance
-  //         .collection("users")
-  //         .doc(userId)
-  //         .collection("carpools")
-  //         .where("carpoolVehicleId", isEqualTo: vehicleId)
-  //         .where("carpoolDate", isEqualTo: carpoolDate)
-  //         .get();
-
-  //     for (var doc in snapshot.docs) {
-  //       Timestamp existingTime = doc["carpoolTime"];
-  //       // We assume exact match is a conflict. Later we can add buffer/overlap logic.
-  //       if (existingTime.toDate().hour == carpoolTime.toDate().hour &&
-  //           existingTime.toDate().minute == carpoolTime.toDate().minute) {
-  //         return false; // Conflict found
-  //       }
-  //     }
-
-  //     return true; // No conflicts found
-  //   } catch (e) {
-  //     print("Error checking vehicle availability: $e");
-  //     throw Exception("Failed to check vehicle availability.");
-  //   }
-  // }
 
   /// 🔍 Checks if the given vehicle is available at the given date and time.
   /// ✅ Uses the flat /carpools collection instead of old nested path.
@@ -1015,30 +738,6 @@ class FirebaseFunctions {
     }
     return null;
   }
-  // Future<Map<String, dynamic>?> getVehicleById(String vehicleId) async {
-  //   String? userId = FirebaseAuth.instance.currentUser?.uid;
-  //   if (userId == null) throw Exception("User not logged in");
-
-  //   try {
-  //     DocumentSnapshot vehicleDoc = await FirebaseFirestore.instance
-  //         .collection("users")
-  //         .doc(userId)
-  //         .collection("vehicles")
-  //         .doc(vehicleId)
-  //         .get();
-
-  //     if (vehicleDoc.exists) {
-  //       Map<String, dynamic> data = vehicleDoc.data() as Map<String, dynamic>;
-  //       data["id"] = vehicleDoc.id; // Include document ID
-  //       return data;
-  //     } else {
-  //       return null;
-  //     }
-  //   } catch (e) {
-  //     print("Error fetching vehicle by ID: $e");
-  //     return null;
-  //   }
-  // }
 
   /// Fetches driver info by ID from the flat `users` collection only.
   Future<Map<String, dynamic>?> getDriverById({
@@ -1060,49 +759,6 @@ class FirebaseFunctions {
       return null;
     }
   }
-
-
-  // /// Fetches driver details by ID from either users or family subcollection
-  // /// Fetches driver info by ID from either users or family subcollection of the carpool owner
-  // Future<Map<String, dynamic>?> getDriverById({
-  //   required String driverId,
-  //   required String carpoolOwnerId, // Always the account owner
-  // }) async {
-  //   try {
-  //     final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  //     // Case 1: If the driverId is the same as the account owner's ID
-  //     if (driverId == carpoolOwnerId) {
-  //       DocumentSnapshot userDoc =
-  //           await _firestore.collection("users").doc(driverId).get();
-  //       if (userDoc.exists) {
-  //         Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
-  //         userData["id"] = driverId;
-  //         return userData;
-  //       }
-  //     }
-
-  //     // Case 2: If the driverId is in the family subcollection of the carpool owner
-  //     DocumentSnapshot familyDoc = await _firestore
-  //         .collection("users")
-  //         .doc(carpoolOwnerId)
-  //         .collection("family")
-  //         .doc(driverId)
-  //         .get();
-
-  //     if (familyDoc.exists) {
-  //       Map<String, dynamic> familyData =
-  //           familyDoc.data() as Map<String, dynamic>;
-  //       familyData["id"] = driverId;
-  //       return familyData;
-  //     }
-
-  //     return null; // Not found
-  //   } catch (e) {
-  //     print("Error fetching driver: $e");
-  //     return null;
-  //   }
-  // }
 
   /// 🔍 Fetches a user's document from the `users` collection using their user ID
   Future<Map<String, dynamic>?> getUserById(String userId) async {
@@ -1156,52 +812,4 @@ class FirebaseFunctions {
 
     return resolvedParticipants;
   }
-
-
-  // /// 🔹 Resolves participant details (excluding driver) for a carpool
-  // Future<List<Map<String, dynamic>>> getCarpoolParticipants({
-  //   required String carpoolOwnerId,
-  //   required String carpoolDriverId,
-  //   required List<String> participantIds,
-  // }) async {
-  //   List<Map<String, dynamic>> resolvedParticipants = [];
-
-  //   try {
-  //     for (String participantId in participantIds) {
-  //       // 🚫 Skip the driver
-  //       if (participantId == carpoolDriverId) continue;
-
-  //       Map<String, dynamic>? participantData;
-
-  //       if (participantId == carpoolOwnerId) {
-  //         // ✅ Reuse getUserById for account owner
-  //         participantData = await getUserById(participantId);
-  //       } else {
-  //         // ✅ Participant is a family member
-  //         DocumentSnapshot doc = await _firestore
-  //             .collection("users")
-  //             .doc(carpoolOwnerId)
-  //             .collection("family")
-  //             .doc(participantId)
-  //             .get();
-  //         if (doc.exists) {
-  //           participantData = doc.data() as Map<String, dynamic>;
-  //         }
-  //       }
-
-  //       if (participantData != null) {
-  //         participantData["id"] = participantId;
-  //         resolvedParticipants.add(participantData);
-  //       }
-  //     }
-
-  //     return resolvedParticipants;
-  //   } catch (e) {
-  //     print("❌ Error resolving carpool participants: $e");
-  //     return [];
-  //   }
-  // }
-
-
-
 }
