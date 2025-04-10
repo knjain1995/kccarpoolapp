@@ -156,38 +156,82 @@ class FirebaseFunctions {
   }
 
   /// Save files locally to system
-  Future<String?> saveFileLocally(String fileType) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
-    );
-
-    if (result != null) {
-      try {
-        Directory? appDocDir = await getExternalStorageDirectory();
-        if (appDocDir == null) {
-          print("Failed to get external storage directory.");
-          return null;
-        }
-
-        String localPath = '${appDocDir.path}/$fileType';
-        Directory(localPath).createSync(recursive: true);
-
-        File file = File(result.files.single.path!);
-        String newFilePath = '$localPath/${result.files.single.name}';
-        await file.copy(newFilePath);
-
-        print("File saved publicly at: $newFilePath");
-        return newFilePath;
-      } catch (e) {
-        print("Error saving file locally: $e");
+  /// Save a file that was already picked using FileUtils
+  Future<String?> saveFileLocally(String fileType, String pickedFilePath) async {
+    try {
+      Directory? appDocDir = await getExternalStorageDirectory();
+      if (appDocDir == null) {
+        print("Failed to get external storage directory.");
         return null;
       }
-    } else {
-      print("No file selected");
+
+      String localPath = '${appDocDir.path}/$fileType';
+      await Directory(localPath).create(recursive: true);
+
+      File file = File(pickedFilePath);
+      String newFilePath = '$localPath/${file.uri.pathSegments.last}';
+      await file.copy(newFilePath);
+
+      print("File saved publicly at: $newFilePath");
+      return newFilePath;
+    } catch (e) {
+      print("Error saving file locally: $e");
       return null;
     }
-  }  
+  }
+
+  // Future<String?> saveFileLocally(String fileType, String pickedFilePath) async {
+  //   try {
+  //     final directory = await getApplicationDocumentsDirectory(); // or external path
+  //     final String fileName = pickedFilePath.split('/').last;
+  //     final File newFile = File('${directory.path}/$fileType/$fileName');
+
+  //     // Make sure the folder exists
+  //     await newFile.parent.create(recursive: true);
+
+  //     // Copy the picked file to local storage
+  //     final savedFile = await File(pickedFilePath).copy(newFile.path);
+
+  //     print("File saved publicly at: ${savedFile.path}");
+  //     return savedFile.path;
+  //   } catch (e) {
+  //     print("Error saving file: $e");
+  //     return null;
+  //   }
+  // }
+
+  // Future<String?> saveFileLocally(String fileType) async {
+  //   FilePickerResult? result = await FilePicker.platform.pickFiles(
+  //     type: FileType.custom,
+  //     allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+  //   );
+
+  //   if (result != null) {
+  //     try {
+  //       Directory? appDocDir = await getExternalStorageDirectory();
+  //       if (appDocDir == null) {
+  //         print("Failed to get external storage directory.");
+  //         return null;
+  //       }
+
+  //       String localPath = '${appDocDir.path}/$fileType';
+  //       Directory(localPath).createSync(recursive: true);
+
+  //       File file = File(result.files.single.path!);
+  //       String newFilePath = '$localPath/${result.files.single.name}';
+  //       await file.copy(newFilePath);
+
+  //       print("File saved publicly at: $newFilePath");
+  //       return newFilePath;
+  //     } catch (e) {
+  //       print("Error saving file locally: $e");
+  //       return null;
+  //     }
+  //   } else {
+  //     print("No file selected");
+  //     return null;
+  //   }
+  // }  
 
 
   /// Saves user verification data in Firestore

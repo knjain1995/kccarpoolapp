@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Firebase interaction class
 import 'package:file_picker/file_picker.dart'; // Used for selecting local files
+import 'package:kccarpoolapp/utils/file_utils.dart';
 
 /// Screen for adding and editing vehicles
 class ManageVehiclesScreen extends StatefulWidget {
@@ -86,17 +87,17 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
     }
   }
 
-  /// Opens file picker and saves selected file locally
-  Future<void> _pickFile(String fileType) async {
-    String? savedPath = await _firebaseFunctions.saveFileLocally(fileType);
-    if (savedPath != null) {
-      setState(() {
-        if (fileType == "vehicleImage") _vehicleImage = savedPath;
-        if (fileType == "registrationDocument") _registrationDocument = savedPath;
-         if (fileType == "licensePlateImage") _licensePlateImage = savedPath; // ✅ New field
-      });
-    }
-  }
+  // /// Opens file picker and saves selected file locally
+  // Future<void> _pickFile(String fileType) async {
+  //   String? savedPath = await _firebaseFunctions.saveFileLocally(fileType);
+  //   if (savedPath != null) {
+  //     setState(() {
+  //       if (fileType == "vehicleImage") _vehicleImage = savedPath;
+  //       if (fileType == "registrationDocument") _registrationDocument = savedPath;
+  //        if (fileType == "licensePlateImage") _licensePlateImage = savedPath; // ✅ New field
+  //     });
+  //   }
+  // }
 
   /// Saves or updates vehicle data in Firestore
   Future<void> _saveVehicle() async {
@@ -190,11 +191,42 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
       title: Text(label),
       subtitle: filePath != null ? Text("Uploaded") : Text("Not uploaded"),
       trailing: ElevatedButton(
-        onPressed: () => _pickFile(fileType),
+        onPressed: () async {
+          // Step 1: Let user pick a file using shared utility
+          String? pickedPath = await FileUtils.pickFile(
+            allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+          );
+
+          if (pickedPath != null) {
+            // Step 2: Save the file locally
+            String? savedPath = await _firebaseFunctions.saveFileLocally(fileType, pickedPath);
+
+            if (savedPath != null) {
+              // Step 3: Update the correct state variable
+              setState(() {
+                if (fileType == "vehicleImage") _vehicleImage = savedPath;
+                if (fileType == "registrationDocument") _registrationDocument = savedPath;
+                if (fileType == "licensePlateImage") _licensePlateImage = savedPath;
+              });
+            }
+          }
+        },
         child: Text(filePath != null ? "Replace" : "Upload"),
       ),
     );
   }
+
+  
+  // Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
+  //   return ListTile(
+  //     title: Text(label),
+  //     subtitle: filePath != null ? Text("Uploaded") : Text("Not uploaded"),
+  //     trailing: ElevatedButton(
+  //       onPressed: () => _pickFile(fileType),
+  //       child: Text(filePath != null ? "Replace" : "Upload"),
+  //     ),
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {

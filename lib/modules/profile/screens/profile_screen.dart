@@ -6,6 +6,8 @@ import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Firebase interaction class
 import 'package:kccarpoolapp/services/auth_service.dart'; // Authentication service
 import 'package:file_picker/file_picker.dart'; // Used for selecting local files
+import 'package:kccarpoolapp/utils/file_utils.dart'; // For picking files
+
 
 /// The Profile Screen allows users to view and update their details.
 /// Users can change their profile picture, update their address, and manage uploaded documents.
@@ -62,25 +64,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Opens a file picker and saves the selected file locally
-  Future<void> _pickFile(String fileType) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom, // Allows selection of specific file types
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'], // Supported file types
-    );
+  // /// Opens a file picker and saves the selected file locally
+  // Future<void> _pickFile(String fileType) async {
+  //   FilePickerResult? result = await FilePicker.platform.pickFiles(
+  //     type: FileType.custom, // Allows selection of specific file types
+  //     allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'], // Supported file types
+  //   );
 
-    if (result != null) {
-      // Save the file locally
-      String? savedPath = await _firebaseFunctions.saveFileLocally(fileType);
-      if (savedPath != null) {
-        setState(() {
-          if (fileType == "profilePhoto") _profilePhoto = savedPath;
-          if (fileType == "govId") _govId = savedPath;
-          if (fileType == "driverLicense") _driverLicense = savedPath;
-        });
-      }
-    }
-  }
+  //   if (result != null) {
+  //     // Save the file locally
+  //     String? savedPath = await _firebaseFunctions.saveFileLocally(fileType);
+  //     if (savedPath != null) {
+  //       setState(() {
+  //         if (fileType == "profilePhoto") _profilePhoto = savedPath;
+  //         if (fileType == "govId") _govId = savedPath;
+  //         if (fileType == "driverLicense") _driverLicense = savedPath;
+  //       });
+  //     }
+  //   }
+  // }
 
   /// Saves the updated user profile data to Firestore
   Future<void> _saveProfile() async {
@@ -226,7 +228,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             /// Profile Picture Section
             GestureDetector(
-              onTap: () => _pickFile("profilePhoto"),
+              // onTap: () => _pickFile("profilePhoto"),
+              onTap: () async {
+                // Step 1: Open the file picker
+                String? pickedPath = await FileUtils.pickFile(
+                  allowedExtensions: ['jpg', 'jpeg', 'png'],
+                );
+
+                if (pickedPath != null) {
+                  // Step 2: Save the file locally
+                  String? savedPath = await _firebaseFunctions.saveFileLocally("profilePhoto", pickedPath);
+
+                  if (savedPath != null) {
+                    // Step 3: Update profile photo in state
+                    setState(() {
+                      _profilePhoto = savedPath;
+                    });
+                  }
+                }
+              },
               child: CircleAvatar(
                 radius: 50,
                 backgroundImage: _profilePhoto != null ? FileImage(File(_profilePhoto!)) : null,
@@ -334,11 +354,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
       title: Text(label),
       subtitle: filePath != null ? Text("Uploaded") : Text("Not uploaded"),
       trailing: ElevatedButton(
-        onPressed: () => _pickFile(fileType),
+        onPressed: () async {
+          // 1. Let user pick a file
+          String? pickedPath = await FileUtils.pickFile(
+            allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+          );
+
+          if (pickedPath != null) {
+            // 2. Save it locally (your existing logic)
+            String? savedPath = await _firebaseFunctions.saveFileLocally(fileType, pickedPath);
+
+            if (savedPath != null) {
+              setState(() {
+                if (fileType == "profilePhoto") _profilePhoto = savedPath;
+                if (fileType == "govId") _govId = savedPath;
+                if (fileType == "driverLicense") _driverLicense = savedPath;
+              });
+            }
+          }
+        },
         child: Text(filePath != null ? "Replace" : "Upload"),
       ),
     );
   }
+
+
+  // Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
+  //   return ListTile(
+  //     title: Text(label),
+  //     subtitle: filePath != null ? Text("Uploaded") : Text("Not uploaded"),
+  //     trailing: ElevatedButton(
+  //       onPressed: () => _pickFile(fileType),
+  //       child: Text(filePath != null ? "Replace" : "Upload"),
+  //     ),
+  //   );
+  // }
 
   /// Builds a scrollable list of family members
   Widget _buildFamilyList(List<Map<String, dynamic>> familyMembers) {

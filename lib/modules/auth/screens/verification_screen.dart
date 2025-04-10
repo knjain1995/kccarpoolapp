@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
+import 'package:kccarpoolapp/utils/file_utils.dart';
+
 
 class VerificationScreen extends StatefulWidget {
   @override
@@ -50,12 +52,15 @@ class _VerificationScreenState extends State<VerificationScreen> {
             Text("Upload Profile Photo (Required)"),
             ElevatedButton(
               onPressed: () async {
-                String? path = await _firebaseFunctions.saveFileLocally("profilePhoto");
-                if (path != null) {
-                  setState(() {
-                    _photoFile = path;
-                  });
-                  print("Profile photo saved at: $path");
+                String? pickedPath = await FileUtils.pickFile(allowedExtensions: ['jpg', 'jpeg', 'png']);
+                if (pickedPath != null) {
+                  String? path = await _firebaseFunctions.saveFileLocally("profilePhoto", pickedPath);
+                  if (path != null) {
+                    setState(() {
+                      _photoFile = path;
+                    });
+                    print("Profile photo saved at: $path");
+                  }
                 }
               },
               child: Text(_photoFile == null ? "Upload Photo" : "Photo Saved Locally ✅"),
@@ -66,12 +71,15 @@ class _VerificationScreenState extends State<VerificationScreen> {
             Text("Upload Driver License (Optional)"),
             ElevatedButton(
               onPressed: () async {
-                String? path = await _firebaseFunctions.saveFileLocally("driverLicense");
-                if (path != null) {
-                  setState(() {
-                    _driverLicenseFile = path;
-                  });
-                  print("License saved at: $path");
+                String? pickedPath = await FileUtils.pickFile(allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf']);
+                if (pickedPath != null) {
+                  String? path = await _firebaseFunctions.saveFileLocally("driverLicense", pickedPath);
+                  if (path != null) {
+                    setState(() {
+                      _driverLicenseFile = path;
+                    });
+                    print("License saved at: $path");
+                  }
                 }
               },
               child: Text(_driverLicenseFile == null ? "Upload License" : "License Uploaded ✅"),
@@ -82,12 +90,15 @@ class _VerificationScreenState extends State<VerificationScreen> {
             Text("Upload Government ID (Required)"),
             ElevatedButton(
               onPressed: () async {
-                String? path = await _firebaseFunctions.saveFileLocally("govId");
-                if (path != null) {
-                  setState(() {
-                    _govIdFile = path;
-                  });
-                  print("Govt ID saved at: $path");
+                String? pickedPath = await FileUtils.pickFile(allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf']);
+                if (pickedPath != null) {
+                  String? path = await _firebaseFunctions.saveFileLocally("govId", pickedPath);
+                  if (path != null) {
+                    setState(() {
+                      _govIdFile = path;
+                    });
+                    print("Govt ID saved at: $path");
+                  }
                 }
               },
               child: Text(_govIdFile == null ? "Upload ID" : "ID Uploaded ✅"),
