@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import for handling Firestore Timestamp
-import 'package:kccarpoolapp/utils/file_utils.dart'; // 📁 For picking files
+import 'package:kccarpoolapp/utils/file_utils.dart';
+import 'package:kccarpoolapp/utils/ui_helpers.dart'; // 📁 For picking files
 
 
 /// Manages adding family members (Adults & Children) for the account owner
@@ -285,15 +286,50 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
             ],
 
             /// Profile Photo Upload
-            _buildFileUploadSection("Profile Photo", _profilePhoto, "profilePhoto"),
+            // _buildFileUploadSection("Profile Photo", _profilePhoto, "profilePhoto"),
+            buildFileUploadSection(
+              context: context,
+              label: "Profile Photo",
+              fileType: "profilePhoto",
+              currentPath: _profilePhoto,
+              firebaseFunctions: _firebaseFunctions,
+              onFilePicked: (path) => setState(() => _profilePhoto = path),
+            ),
+
             /// Government ID Upload
-            _buildFileUploadSection("Government ID", _govId, "govId"),
+            // _buildFileUploadSection("Government ID", _govId, "govId"),
+            buildFileUploadSection(
+              context: context,
+              label: "Government ID",
+              fileType: "govId",
+              currentPath: _govId,
+              firebaseFunctions: _firebaseFunctions,
+              onFilePicked: (path) => setState(() => _govId = path),
+            ),
 
             /// Driver's License Upload (Only for Adults)
-            if (_isAdult) _buildFileUploadSection("Driver License (Optional)", _driverLicense, "driverLicense"),
+            // if (_isAdult) _buildFileUploadSection("Driver License (Optional)", _driverLicense, "driverLicense"),
+            buildFileUploadSection(
+              context: context,
+              label: "Driver License (Optional)",
+              fileType: "driverLicense",
+              currentPath: _driverLicense,
+              firebaseFunctions: _firebaseFunctions,
+              onFilePicked: (path) => setState(() => _driverLicense = path),
+            ),
 
             /// School ID Upload (Only for Children)
-            if (!_isAdult) _buildFileUploadSection("School ID", _schoolId, "schoolId"),
+            // if (!_isAdult) _buildFileUploadSection("School ID", _schoolId, "schoolId"),
+            if (!_isAdult)
+              buildFileUploadSection(
+                context: context,
+                label: "School ID",
+                fileType: "schoolId",
+                currentPath: _schoolId,
+                firebaseFunctions: _firebaseFunctions,
+                onFilePicked: (path) => setState(() => _schoolId = path),
+              ),
+
 
             /// Address Input
             /// UI: Add a button to autofill the address field
@@ -346,37 +382,37 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
     );
   }
 
-  // /// Builds a file upload button
-  Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
-  return ListTile(
-    title: Text(label),
-    subtitle: filePath != null ? Text("Uploaded") : Text("Not uploaded"),
-    trailing: ElevatedButton(
-      onPressed: () async {
-        // 1. Pick a file using the FileUtils helper
-        String? pickedPath = await FileUtils.pickFile(
-          allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
-        );
+//   // /// Builds a file upload button
+//   Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
+//   return ListTile(
+//     title: Text(label),
+//     subtitle: filePath != null ? Text("Uploaded") : Text("Not uploaded"),
+//     trailing: ElevatedButton(
+//       onPressed: () async {
+//         // 1. Pick a file using the FileUtils helper
+//         String? pickedPath = await FileUtils.pickFile(
+//           allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+//         );
 
-        if (pickedPath != null) {
-          // 2. Save the picked file locally using existing FirebaseFunctions method
-          String? savedPath = await _firebaseFunctions.saveFileLocally(fileType, pickedPath);
+//         if (pickedPath != null) {
+//           // 2. Save the picked file locally using existing FirebaseFunctions method
+//           String? savedPath = await _firebaseFunctions.saveFileLocally(fileType, pickedPath);
 
-          if (savedPath != null) {
-            // 3. Update the correct state variable based on fileType
-            setState(() {
-              if (fileType == "profilePhoto") _profilePhoto = savedPath;
-              if (fileType == "govId") _govId = savedPath;
-              if (fileType == "driverLicense") _driverLicense = savedPath;
-              if (fileType == "schoolId") _schoolId = savedPath;
-            });
-          }
-        }
-      },
-      child: Text(filePath != null ? "Replace" : "Upload"),
-    ),
-  );
-}
+//           if (savedPath != null) {
+//             // 3. Update the correct state variable based on fileType
+//             setState(() {
+//               if (fileType == "profilePhoto") _profilePhoto = savedPath;
+//               if (fileType == "govId") _govId = savedPath;
+//               if (fileType == "driverLicense") _driverLicense = savedPath;
+//               if (fileType == "schoolId") _schoolId = savedPath;
+//             });
+//           }
+//         }
+//       },
+//       child: Text(filePath != null ? "Replace" : "Upload"),
+//     ),
+//   );
+// }
 
 
   // Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
