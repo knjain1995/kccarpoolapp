@@ -3,8 +3,6 @@ import 'dart:io'; // Required for handling local file storage
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Firebase interaction class
-import 'package:file_picker/file_picker.dart'; // Used for selecting local files
-import 'package:kccarpoolapp/utils/file_utils.dart';
 import 'package:kccarpoolapp/utils/ui_helpers.dart'; // 📁 For picking files
 
 /// Screen for adding and editing vehicles
