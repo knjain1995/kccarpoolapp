@@ -270,9 +270,9 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
             /// Fields only for Child
             if (!_isAdult) ...[
               _buildDatePickerField("Date of Birth", _dateOfBirthController, _pickDateOfBirth),
-              buildTextField(label: "School Name", controller: _schoolNameController, enabled: false),
-              buildTextField(label: "School ID No.", controller: _schoolIdNoController, enabled: false),
-              buildTextField(label: "Grade", controller: _gradeController, enabled: false),
+              buildTextField(label: "School Name", controller: _schoolNameController, enabled: true),
+              buildTextField(label: "School ID No.", controller: _schoolIdNoController, enabled: true),
+              buildTextField(label: "Grade", controller: _gradeController, enabled: true),
               // _buildTextField("Date of Birth", _dateOfBirthController),
               // _buildTextField("School Name", _schoolNameController),
               // _buildTextField("School ID No.", _schoolIdNoController),

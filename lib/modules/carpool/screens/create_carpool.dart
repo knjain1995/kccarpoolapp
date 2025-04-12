@@ -723,15 +723,22 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             ],
 
             // Carpool Capacity
-
-            // _buildTextField("Capacity", _capacityController, keyboardType: TextInputType.number),
-            _buildTextField(
-              _vehicleMaxCapacity != null
+            buildTextField(
+              label: _vehicleMaxCapacity != null
                   ? "Capacity (Max: $_vehicleMaxCapacity)"
                   : "Capacity",
-              _capacityController,
+              controller: _capacityController,
               keyboardType: TextInputType.number,
             ),
+
+            // _buildTextField("Capacity", _capacityController, keyboardType: TextInputType.number),
+            // _buildTextField(
+            //   _vehicleMaxCapacity != null
+            //       ? "Capacity (Max: $_vehicleMaxCapacity)"
+            //       : "Capacity",
+            //   _capacityController,
+            //   keyboardType: TextInputType.number,
+            // ),
 
             // Return Trip Toggle
             SwitchListTile(
