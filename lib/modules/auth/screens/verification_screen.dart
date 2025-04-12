@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/core/routes.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
 import 'package:kccarpoolapp/utils/file_utils.dart';
-
+import 'package:kccarpoolapp/utils/ui_helpers.dart'; // For handleFileUpload
 
 class VerificationScreen extends StatefulWidget {
   @override
@@ -51,58 +51,88 @@ class _VerificationScreenState extends State<VerificationScreen> {
             /// Upload Profile Photo
             Text("Upload Profile Photo (Required)"),
             ElevatedButton(
-              onPressed: () async {
-                String? pickedPath = await FileUtils.pickFile(allowedExtensions: ['jpg', 'jpeg', 'png']);
-                if (pickedPath != null) {
-                  String? path = await _firebaseFunctions.saveFileLocally("profilePhoto", pickedPath);
-                  if (path != null) {
-                    setState(() {
-                      _photoFile = path;
-                    });
-                    print("Profile photo saved at: $path");
-                  }
-                }
-              },
+              onPressed: () => handleFileUpload(
+                context: context,
+                fileType: "profilePhoto",
+                firebaseFunctions: _firebaseFunctions,
+                allowedExtensions: ['jpg', 'jpeg', 'png'],
+                onFilePicked: (path) => setState(() => _photoFile = path),
+              ),
               child: Text(_photoFile == null ? "Upload Photo" : "Photo Saved Locally ✅"),
             ),
+            // ElevatedButton(
+            //   onPressed: () async {
+            //     String? pickedPath = await FileUtils.pickFile(allowedExtensions: ['jpg', 'jpeg', 'png']);
+            //     if (pickedPath != null) {
+            //       String? path = await _firebaseFunctions.saveFileLocally("profilePhoto", pickedPath);
+            //       if (path != null) {
+            //         setState(() {
+            //           _photoFile = path;
+            //         });
+            //         print("Profile photo saved at: $path");
+            //       }
+            //     }
+            //   },
+            //   child: Text(_photoFile == null ? "Upload Photo" : "Photo Saved Locally ✅"),
+            // ),
             SizedBox(height: 10),
 
             /// Upload Driver License (Optional)
             Text("Upload Driver License (Optional)"),
             ElevatedButton(
-              onPressed: () async {
-                String? pickedPath = await FileUtils.pickFile(allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf']);
-                if (pickedPath != null) {
-                  String? path = await _firebaseFunctions.saveFileLocally("driverLicense", pickedPath);
-                  if (path != null) {
-                    setState(() {
-                      _driverLicenseFile = path;
-                    });
-                    print("License saved at: $path");
-                  }
-                }
-              },
+              onPressed: () => handleFileUpload(
+                context: context,
+                fileType: "driverLicense",
+                firebaseFunctions: _firebaseFunctions,
+                allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+                onFilePicked: (path) => setState(() => _driverLicenseFile = path),
+              ),
               child: Text(_driverLicenseFile == null ? "Upload License" : "License Uploaded ✅"),
             ),
+            // ElevatedButton(
+            //   onPressed: () async {
+            //     String? pickedPath = await FileUtils.pickFile(allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf']);
+            //     if (pickedPath != null) {
+            //       String? path = await _firebaseFunctions.saveFileLocally("driverLicense", pickedPath);
+            //       if (path != null) {
+            //         setState(() {
+            //           _driverLicenseFile = path;
+            //         });
+            //         print("License saved at: $path");
+            //       }
+            //     }
+            //   },
+            //   child: Text(_driverLicenseFile == null ? "Upload License" : "License Uploaded ✅"),
+            // ),
             SizedBox(height: 10),
             
             /// Upload Government ID (Required)
             Text("Upload Government ID (Required)"),
             ElevatedButton(
-              onPressed: () async {
-                String? pickedPath = await FileUtils.pickFile(allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf']);
-                if (pickedPath != null) {
-                  String? path = await _firebaseFunctions.saveFileLocally("govId", pickedPath);
-                  if (path != null) {
-                    setState(() {
-                      _govIdFile = path;
-                    });
-                    print("Govt ID saved at: $path");
-                  }
-                }
-              },
+              onPressed: () => handleFileUpload(
+                context: context,
+                fileType: "govId",
+                firebaseFunctions: _firebaseFunctions,
+                allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
+                onFilePicked: (path) => setState(() => _govIdFile = path),
+              ),
               child: Text(_govIdFile == null ? "Upload ID" : "ID Uploaded ✅"),
             ),
+            // ElevatedButton(
+            //   onPressed: () async {
+            //     String? pickedPath = await FileUtils.pickFile(allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf']);
+            //     if (pickedPath != null) {
+            //       String? path = await _firebaseFunctions.saveFileLocally("govId", pickedPath);
+            //       if (path != null) {
+            //         setState(() {
+            //           _govIdFile = path;
+            //         });
+            //         print("Govt ID saved at: $path");
+            //       }
+            //     }
+            //   },
+            //   child: Text(_govIdFile == null ? "Upload ID" : "ID Uploaded ✅"),
+            // ),
             SizedBox(height: 10),
 
             /// Relation to Child Dropdown
