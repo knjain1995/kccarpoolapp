@@ -77,3 +77,82 @@ Widget buildTextField({
     ),
   );
 }
+
+// /// 🗓️ Builds a styled date picker field used in forms (e.g., DOB, event date)
+// Widget buildDatePickerField({
+//   required BuildContext context,
+//   required String label,
+//   required TextEditingController controller,
+//   required bool enabled,
+//   required void Function(DateTime selectedDate) onDateSelected,
+// }) {
+//   return Padding(
+//     padding: const EdgeInsets.symmetric(vertical: 8.0),
+//     child: TextField(
+//       controller: controller,
+//       readOnly: true, // Always readonly — opens date picker on tap
+//       enabled: enabled,
+//       decoration: InputDecoration(
+//         labelText: label,
+//         suffixIcon: Icon(Icons.calendar_today),
+//         border: OutlineInputBorder(),
+//       ),
+//       onTap: enabled
+//           ? () async {
+//               FocusScope.of(context).unfocus(); // Dismiss keyboard
+
+//               DateTime? pickedDate = await showDatePicker(
+//                 context: context,
+//                 initialDate: DateTime.now(),
+//                 firstDate: DateTime(1900),
+//                 lastDate: DateTime(2100),
+//               );
+
+//               if (pickedDate != null) {
+//                 controller.text = "${pickedDate.toLocal()}".split(' ')[0]; // Format: yyyy-MM-dd
+//                 onDateSelected(pickedDate);
+//               }
+//             }
+//           : null,
+//     ),
+//   );
+// }
+
+// /// ⏰ Builds a time picker field for selecting a time (e.g., departure time)
+// Widget buildTimePickerField({
+//   required BuildContext context,
+//   required String label,
+//   required TextEditingController controller,
+//   required bool enabled,
+//   required void Function(TimeOfDay selectedTime) onTimeSelected,
+// }) {
+//   return Padding(
+//     padding: const EdgeInsets.symmetric(vertical: 8.0),
+//     child: TextField(
+//       controller: controller,
+//       readOnly: true,
+//       enabled: enabled,
+//       decoration: InputDecoration(
+//         labelText: label,
+//         suffixIcon: Icon(Icons.access_time),
+//         border: OutlineInputBorder(),
+//       ),
+//       onTap: enabled
+//           ? () async {
+//               FocusScope.of(context).unfocus(); // Dismiss keyboard
+//               TimeOfDay? picked = await showTimePicker(
+//                 context: context,
+//                 initialTime: TimeOfDay.now(),
+//               );
+
+//               if (picked != null) {
+//                 controller.text = picked.format(context);
+//                 onTimeSelected(picked);
+//               }
+//             }
+//           : null,
+//     ),
+//   );
+// }
+
+

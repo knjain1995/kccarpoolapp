@@ -2248,17 +2248,24 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
             SizedBox(height: 20),
 
             /// Common Fields for Both Adult & Child
-            _buildTextField("Full Name", _nameController),
-            _buildTextField("Email (Optional)", _emailController),
-            _buildTextField("Phone Number (Optional)", _phoneController),
+            // _buildTextField("Full Name", _nameController),
+            // _buildTextField("Email (Optional)", _emailController),
+            // _buildTextField("Phone Number (Optional)", _phoneController),
+            buildTextField(label: "Full Name", controller: _nameController, enabled: true),
+            buildTextField(label: "Email (Optional)", controller: _emailController, enabled: true),
+            buildTextField(label: "Phone Number (Optional)", controller: _phoneController, enabled: true),
+
 
             /// Fields only for Child
             if (!_isAdult) ...[
               _buildDatePickerField("Date of Birth", _dateOfBirthController, _pickDateOfBirth),
+              buildTextField(label: "School Name", controller: _schoolNameController, enabled: false),
+              buildTextField(label: "School ID No.", controller: _schoolIdNoController, enabled: false),
+              buildTextField(label: "Grade", controller: _gradeController, enabled: false),
               // _buildTextField("Date of Birth", _dateOfBirthController),
-              _buildTextField("School Name", _schoolNameController),
-              _buildTextField("School ID No.", _schoolIdNoController),
-              _buildTextField("Grade", _gradeController),
+              // _buildTextField("School Name", _schoolNameController),
+              // _buildTextField("School ID No.", _schoolIdNoController),
+              // _buildTextField("Grade", _gradeController),
 
               /// Gender Selection
               DropdownButtonFormField<String>(
@@ -2296,14 +2303,15 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
 
             /// Driver's License Upload (Only for Adults)
             // if (_isAdult) _buildFileUploadSection("Driver License (Optional)", _driverLicense, "driverLicense"),
-            buildFileUploadSection(
-              context: context,
-              label: "Driver License (Optional)",
-              fileType: "driverLicense",
-              currentPath: _driverLicense,
-              firebaseFunctions: _firebaseFunctions,
-              onFilePicked: (path) => setState(() => _driverLicense = path),
-            ),
+            if (_isAdult)
+              buildFileUploadSection(
+                context: context,
+                label: "Driver License (Optional)",
+                fileType: "driverLicense",
+                currentPath: _driverLicense,
+                firebaseFunctions: _firebaseFunctions,
+                onFilePicked: (path) => setState(() => _driverLicense = path),
+              ),
 
             /// School ID Upload (Only for Children)
             // if (!_isAdult) _buildFileUploadSection("School ID", _schoolId, "schoolId"),
@@ -2358,16 +2366,16 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
     );
   }
 
-  /// Builds a text field
-  Widget _buildTextField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(labelText: label),
-      ),
-    );
-  }
+  // /// Builds a text field
+  // Widget _buildTextField(String label, TextEditingController controller) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 8),
+  //     child: TextField(
+  //       controller: controller,
+  //       decoration: InputDecoration(labelText: label),
+  //     ),
+  //   );
+  // }
 
 //   // /// Builds a file upload button
 //   Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
@@ -2606,17 +2614,17 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
         false;
   }
 
-  /// Builds a text field
-  Widget _buildTextField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(labelText: label),
-        keyboardType: label.contains("Year") || label.contains("Capacity") ? TextInputType.number : TextInputType.text,
-      ),
-    );
-  }
+  // /// Builds a text field
+  // Widget _buildTextField(String label, TextEditingController controller) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 8),
+  //     child: TextField(
+  //       controller: controller,
+  //       decoration: InputDecoration(labelText: label),
+  //       keyboardType: label.contains("Year") || label.contains("Capacity") ? TextInputType.number : TextInputType.text,
+  //     ),
+  //   );
+  // }
 
   // /// Builds a file upload button
   // Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
@@ -2676,14 +2684,24 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
         padding: EdgeInsets.all(20),
         child: Column(
           children: [
-            _buildTextField("Vehicle Make", _makeController),
-            _buildTextField("Vehicle Model", _modelController),
-            _buildTextField("Vehicle Year", _yearController),
-            _buildTextField("Vehicle Color", _colorController),
-            _buildTextField("License Number", _licenseNumberController),
-            _buildTextField("Registration Number", _registrationNumberController),
-            _buildTextField("Seating Capacity", _seatingCapacityController),
-
+            // _buildTextField("Vehicle Make", _makeController),
+            // _buildTextField("Vehicle Model", _modelController),
+            // _buildTextField("Vehicle Year", _yearController),
+            // _buildTextField("Vehicle Color", _colorController),
+            // _buildTextField("License Number", _licenseNumberController),
+            // _buildTextField("Registration Number", _registrationNumberController),
+            // _buildTextField("Seating Capacity", _seatingCapacityController),
+            buildTextField(label: "Vehicle Make", controller: _makeController),
+            buildTextField(label: "Vehicle Model", controller: _modelController),
+            buildTextField(label: "Vehicle Year", controller: _yearController),
+            buildTextField(label: "Vehicle Color", controller: _colorController),
+            buildTextField(label: "License Number", controller: _licenseNumberController),
+            buildTextField(label: "Registration Number", controller: _registrationNumberController),
+            buildTextField(
+              label: "Seating Capacity",
+              controller: _seatingCapacityController,
+              keyboardType: TextInputType.number,
+            ),
             SizedBox(height: 20),
 
             /// Vehicle Image Upload
@@ -2941,6 +2959,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Logs the user out and navigates back to the login screen
   Future<void> _logout() async {
     await _authService.logout(context); // Properly handles logout and navigation
+  }
+
+    /// Builds a scrollable list of family members
+  Widget _buildFamilyList(List<Map<String, dynamic>> familyMembers) {
+    return Column(
+      children: familyMembers.map((member) {
+        return Card(
+          elevation: 2,
+          margin: EdgeInsets.symmetric(vertical: 5),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundImage: member['profilePhoto'] != null ? FileImage(File(member['profilePhoto'])) : null,
+              child: member['profilePhoto'] == null ? Icon(Icons.person) : null,
+            ),
+            title: Text(member['fullName']),
+            subtitle: Text(member['isAdult']
+                ? member['relationToChild'] // Show relation for adults
+                : "Age: ${_calculateAge(member['dateOfBirth'])}"), // Show age for children
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(icon: Icon(Icons.edit), onPressed: () => _editFamilyMember(member)), // Edit Button
+                IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteFamilyMember(member['id'])), // Delete Button
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Helper function to calculate age from Firestore Timestamp
+  int _calculateAge(Timestamp dobTimestamp) {
+    DateTime birthDate = dobTimestamp.toDate(); // Convert Firestore Timestamp to DateTime
+    DateTime today = DateTime.now();
+
+    int age = today.year - birthDate.year;
+    
+    // Adjust age if birthday hasn't occurred yet this year
+    if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) {
+      age--;
+    }
+
+    return age;
+  }
+
+  /// Builds a scrollable list of vehicles
+  Widget _buildVehicleList() {
+    return Column(
+      children: _vehicles.map((vehicle) {
+        print("Building vehicle list: $vehicle"); // 🔍 Debugging Output
+        return Card(
+          elevation: 2,
+          margin: EdgeInsets.symmetric(vertical: 5),
+          child: ListTile(
+            leading: vehicle['vehicleImage'] != null
+                ? Image.file(File(vehicle['vehicleImage']), width: 50, height: 50, fit: BoxFit.cover)
+                : Icon(Icons.directions_car, size: 50),
+            title: Text("${vehicle['vehicleMake']} ${vehicle['vehicleModel']}"),
+            subtitle: Text("License No: ${vehicle['vehicleLicenseNumber']}"),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // IconButton(icon: Icon(Icons.edit), onPressed: () => _manageVehicle(vehicleData: vehicle)), // Edit Button
+              
+                IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () {
+                  if (vehicle.containsKey("id")) {
+                    _manageVehicle(vehicleData: vehicle);
+                  } else {
+                    print("Error: Vehicle data missing 'id' field!"); // 🔍 Debug
+                  }
+                },
+              ),
+
+
+                IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVehicle(vehicle['id'])), // Delete Button
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }  
 
   @override
@@ -2982,10 +3084,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SizedBox(height: 20),
 
             /// Editable Text Fields
-            _buildTextField("Full Name", _nameController, _isEditing),
-            _buildTextField("Email", _emailController, false),
-            _buildTextField("Phone Number", _phoneController, _isEditing),
-            _buildTextField("Address", _addressController, _isEditing),
+            // _buildTextField("Full Name", _nameController, _isEditing),
+            // _buildTextField("Email", _emailController, false),
+            // _buildTextField("Phone Number", _phoneController, _isEditing),
+            // _buildTextField("Address", _addressController, _isEditing),
+            buildTextField(label: "Full Name", controller: _nameController, enabled: _isEditing),
+            buildTextField(label: "Email", controller: _emailController, enabled: false),
+            buildTextField(label: "Phone Number", controller: _phoneController, enabled: _isEditing),
+            buildTextField(label: "Address", controller: _addressController, enabled: _isEditing),
 
             /// File Upload Sections
             // _buildFileUploadSection("Government ID", _govId, "govId"),
@@ -3078,18 +3184,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
-  /// Builds a text field with optional editing capability
-  Widget _buildTextField(String label, TextEditingController controller, bool isEditable) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextField(
-        controller: controller,
-        enabled: isEditable,
-        decoration: InputDecoration(labelText: label),
-      ),
-    );
-  }
+}
+  // /// Builds a text field with optional editing capability
+  // Widget _buildTextField(String label, TextEditingController controller, bool isEditable) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 8),
+  //     child: TextField(
+  //       controller: controller,
+  //       enabled: isEditable,
+  //       decoration: InputDecoration(labelText: label),
+  //     ),
+  //   );
+  // }
 
   // /// Builds a section for file uploads
   // Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
@@ -3132,91 +3238,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   //     ),
   //   );
   // }
-
-  /// Builds a scrollable list of family members
-  Widget _buildFamilyList(List<Map<String, dynamic>> familyMembers) {
-    return Column(
-      children: familyMembers.map((member) {
-        return Card(
-          elevation: 2,
-          margin: EdgeInsets.symmetric(vertical: 5),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundImage: member['profilePhoto'] != null ? FileImage(File(member['profilePhoto'])) : null,
-              child: member['profilePhoto'] == null ? Icon(Icons.person) : null,
-            ),
-            title: Text(member['fullName']),
-            subtitle: Text(member['isAdult']
-                ? member['relationToChild'] // Show relation for adults
-                : "Age: ${_calculateAge(member['dateOfBirth'])}"), // Show age for children
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(icon: Icon(Icons.edit), onPressed: () => _editFamilyMember(member)), // Edit Button
-                IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteFamilyMember(member['id'])), // Delete Button
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  /// Helper function to calculate age from Firestore Timestamp
-  int _calculateAge(Timestamp dobTimestamp) {
-    DateTime birthDate = dobTimestamp.toDate(); // Convert Firestore Timestamp to DateTime
-    DateTime today = DateTime.now();
-
-    int age = today.year - birthDate.year;
-    
-    // Adjust age if birthday hasn't occurred yet this year
-    if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) {
-      age--;
-    }
-
-    return age;
-  }
-
-  /// Builds a scrollable list of vehicles
-  Widget _buildVehicleList() {
-    return Column(
-      children: _vehicles.map((vehicle) {
-        print("Building vehicle list: $vehicle"); // 🔍 Debugging Output
-        return Card(
-          elevation: 2,
-          margin: EdgeInsets.symmetric(vertical: 5),
-          child: ListTile(
-            leading: vehicle['vehicleImage'] != null
-                ? Image.file(File(vehicle['vehicleImage']), width: 50, height: 50, fit: BoxFit.cover)
-                : Icon(Icons.directions_car, size: 50),
-            title: Text("${vehicle['vehicleMake']} ${vehicle['vehicleModel']}"),
-            subtitle: Text("License No: ${vehicle['vehicleLicenseNumber']}"),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // IconButton(icon: Icon(Icons.edit), onPressed: () => _manageVehicle(vehicleData: vehicle)), // Edit Button
-              
-                IconButton(
-                icon: Icon(Icons.edit),
-                onPressed: () {
-                  if (vehicle.containsKey("id")) {
-                    _manageVehicle(vehicleData: vehicle);
-                  } else {
-                    print("Error: Vehicle data missing 'id' field!"); // 🔍 Debug
-                  }
-                },
-              ),
-
-
-                IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVehicle(vehicle['id'])), // Delete Button
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
 
 // --------------------------------------------------
 

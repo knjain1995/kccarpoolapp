@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:kccarpoolapp/utils/ui_helpers.dart'; // For buildTextField
 
 /// Screen for Creating a New Carpool
 class CreateCarpoolScreen extends StatefulWidget {
@@ -504,13 +505,13 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   }
 
   
-  /// Generic text field builder
-  Widget _buildTextField(String label, TextEditingController controller, {TextInputType keyboardType = TextInputType.text}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextField(controller: controller, decoration: InputDecoration(labelText: label), keyboardType: keyboardType),
-    );
-  }
+  // /// Generic text field builder
+  // Widget _buildTextField(String label, TextEditingController controller, {TextInputType keyboardType = TextInputType.text}) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 8),
+  //     child: TextField(controller: controller, decoration: InputDecoration(labelText: label), keyboardType: keyboardType),
+  //   );
+  // }
 
   /// Date-Time Picker UI
   Widget _buildDateTimePicker(String label, dynamic value, VoidCallback onTap) {
@@ -611,9 +612,12 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
         padding: EdgeInsets.all(20),
         child: Column(
           children: [
-            _buildTextField("Carpool Name", _carpoolNameController),
-            _buildTextField("Start Location", _routeStartController),
-            _buildTextField("End Location", _routeEndController),
+            // _buildTextField("Carpool Name", _carpoolNameController),
+            // _buildTextField("Start Location", _routeStartController),
+            // _buildTextField("End Location", _routeEndController),
+            buildTextField(label: "Carpool Name", controller: _carpoolNameController),
+            buildTextField(label: "Start Location", controller: _routeStartController),
+            buildTextField(label: "End Location", controller: _routeEndController),
 
             _buildDateTimePicker("Select Date", _selectedDate, _pickDate),
             _buildDateTimePicker("Select Time", _selectedTime, _pickTime),
