@@ -203,6 +203,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
   /// Logs the user out and navigates back to the login screen
   Future<void> _logout() async {
     await _authService.logout(context); // Properly handles logout and navigation
+  }
+
+    /// Builds a scrollable list of family members
+  Widget _buildFamilyList(List<Map<String, dynamic>> familyMembers) {
+    return Column(
+      children: familyMembers.map((member) {
+        return Card(
+          elevation: 2,
+          margin: EdgeInsets.symmetric(vertical: 5),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundImage: member['profilePhoto'] != null ? FileImage(File(member['profilePhoto'])) : null,
+              child: member['profilePhoto'] == null ? Icon(Icons.person) : null,
+            ),
+            title: Text(member['fullName']),
+            subtitle: Text(member['isAdult']
+                ? member['relationToChild'] // Show relation for adults
+                : "Age: ${_calculateAge(member['dateOfBirth'])}"), // Show age for children
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(icon: Icon(Icons.edit), onPressed: () => _editFamilyMember(member)), // Edit Button
+                IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteFamilyMember(member['id'])), // Delete Button
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Helper function to calculate age from Firestore Timestamp
+  int _calculateAge(Timestamp dobTimestamp) {
+    DateTime birthDate = dobTimestamp.toDate(); // Convert Firestore Timestamp to DateTime
+    DateTime today = DateTime.now();
+
+    int age = today.year - birthDate.year;
+    
+    // Adjust age if birthday hasn't occurred yet this year
+    if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) {
+      age--;
+    }
+
+    return age;
+  }
+
+  /// Builds a scrollable list of vehicles
+  Widget _buildVehicleList() {
+    return Column(
+      children: _vehicles.map((vehicle) {
+        print("Building vehicle list: $vehicle"); // 🔍 Debugging Output
+        return Card(
+          elevation: 2,
+          margin: EdgeInsets.symmetric(vertical: 5),
+          child: ListTile(
+            leading: vehicle['vehicleImage'] != null
+                ? Image.file(File(vehicle['vehicleImage']), width: 50, height: 50, fit: BoxFit.cover)
+                : Icon(Icons.directions_car, size: 50),
+            title: Text("${vehicle['vehicleMake']} ${vehicle['vehicleModel']}"),
+            subtitle: Text("License No: ${vehicle['vehicleLicenseNumber']}"),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // IconButton(icon: Icon(Icons.edit), onPressed: () => _manageVehicle(vehicleData: vehicle)), // Edit Button
+              
+                IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: () {
+                  if (vehicle.containsKey("id")) {
+                    _manageVehicle(vehicleData: vehicle);
+                  } else {
+                    print("Error: Vehicle data missing 'id' field!"); // 🔍 Debug
+                  }
+                },
+              ),
+
+
+                IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVehicle(vehicle['id'])), // Delete Button
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }  
 
   @override
@@ -244,10 +328,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SizedBox(height: 20),
 
             /// Editable Text Fields
-            _buildTextField("Full Name", _nameController, _isEditing),
-            _buildTextField("Email", _emailController, false),
-            _buildTextField("Phone Number", _phoneController, _isEditing),
-            _buildTextField("Address", _addressController, _isEditing),
+            // _buildTextField("Full Name", _nameController, _isEditing),
+            // _buildTextField("Email", _emailController, false),
+            // _buildTextField("Phone Number", _phoneController, _isEditing),
+            // _buildTextField("Address", _addressController, _isEditing),
+            buildTextField(label: "Full Name", controller: _nameController, enabled: _isEditing),
+            buildTextField(label: "Email", controller: _emailController, enabled: false),
+            buildTextField(label: "Phone Number", controller: _phoneController, enabled: _isEditing),
+            buildTextField(label: "Address", controller: _addressController, enabled: _isEditing),
 
             /// File Upload Sections
             // _buildFileUploadSection("Government ID", _govId, "govId"),
@@ -340,18 +428,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
-  /// Builds a text field with optional editing capability
-  Widget _buildTextField(String label, TextEditingController controller, bool isEditable) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextField(
-        controller: controller,
-        enabled: isEditable,
-        decoration: InputDecoration(labelText: label),
-      ),
-    );
-  }
+}
+  // /// Builds a text field with optional editing capability
+  // Widget _buildTextField(String label, TextEditingController controller, bool isEditable) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 8),
+  //     child: TextField(
+  //       controller: controller,
+  //       enabled: isEditable,
+  //       decoration: InputDecoration(labelText: label),
+  //     ),
+  //   );
+  // }
 
   // /// Builds a section for file uploads
   // Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
@@ -394,88 +482,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
   //     ),
   //   );
   // }
-
-  /// Builds a scrollable list of family members
-  Widget _buildFamilyList(List<Map<String, dynamic>> familyMembers) {
-    return Column(
-      children: familyMembers.map((member) {
-        return Card(
-          elevation: 2,
-          margin: EdgeInsets.symmetric(vertical: 5),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundImage: member['profilePhoto'] != null ? FileImage(File(member['profilePhoto'])) : null,
-              child: member['profilePhoto'] == null ? Icon(Icons.person) : null,
-            ),
-            title: Text(member['fullName']),
-            subtitle: Text(member['isAdult']
-                ? member['relationToChild'] // Show relation for adults
-                : "Age: ${_calculateAge(member['dateOfBirth'])}"), // Show age for children
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(icon: Icon(Icons.edit), onPressed: () => _editFamilyMember(member)), // Edit Button
-                IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteFamilyMember(member['id'])), // Delete Button
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  /// Helper function to calculate age from Firestore Timestamp
-  int _calculateAge(Timestamp dobTimestamp) {
-    DateTime birthDate = dobTimestamp.toDate(); // Convert Firestore Timestamp to DateTime
-    DateTime today = DateTime.now();
-
-    int age = today.year - birthDate.year;
-    
-    // Adjust age if birthday hasn't occurred yet this year
-    if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) {
-      age--;
-    }
-
-    return age;
-  }
-
-  /// Builds a scrollable list of vehicles
-  Widget _buildVehicleList() {
-    return Column(
-      children: _vehicles.map((vehicle) {
-        print("Building vehicle list: $vehicle"); // 🔍 Debugging Output
-        return Card(
-          elevation: 2,
-          margin: EdgeInsets.symmetric(vertical: 5),
-          child: ListTile(
-            leading: vehicle['vehicleImage'] != null
-                ? Image.file(File(vehicle['vehicleImage']), width: 50, height: 50, fit: BoxFit.cover)
-                : Icon(Icons.directions_car, size: 50),
-            title: Text("${vehicle['vehicleMake']} ${vehicle['vehicleModel']}"),
-            subtitle: Text("License No: ${vehicle['vehicleLicenseNumber']}"),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // IconButton(icon: Icon(Icons.edit), onPressed: () => _manageVehicle(vehicleData: vehicle)), // Edit Button
-              
-                IconButton(
-                icon: Icon(Icons.edit),
-                onPressed: () {
-                  if (vehicle.containsKey("id")) {
-                    _manageVehicle(vehicleData: vehicle);
-                  } else {
-                    print("Error: Vehicle data missing 'id' field!"); // 🔍 Debug
-                  }
-                },
-              ),
-
-
-                IconButton(icon: Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVehicle(vehicle['id'])), // Delete Button
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}

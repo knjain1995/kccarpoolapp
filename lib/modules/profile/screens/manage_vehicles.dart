@@ -172,17 +172,17 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
         false;
   }
 
-  /// Builds a text field
-  Widget _buildTextField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(labelText: label),
-        keyboardType: label.contains("Year") || label.contains("Capacity") ? TextInputType.number : TextInputType.text,
-      ),
-    );
-  }
+  // /// Builds a text field
+  // Widget _buildTextField(String label, TextEditingController controller) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 8),
+  //     child: TextField(
+  //       controller: controller,
+  //       decoration: InputDecoration(labelText: label),
+  //       keyboardType: label.contains("Year") || label.contains("Capacity") ? TextInputType.number : TextInputType.text,
+  //     ),
+  //   );
+  // }
 
   // /// Builds a file upload button
   // Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
@@ -242,14 +242,24 @@ class _ManageVehiclesScreenState extends State<ManageVehiclesScreen> {
         padding: EdgeInsets.all(20),
         child: Column(
           children: [
-            _buildTextField("Vehicle Make", _makeController),
-            _buildTextField("Vehicle Model", _modelController),
-            _buildTextField("Vehicle Year", _yearController),
-            _buildTextField("Vehicle Color", _colorController),
-            _buildTextField("License Number", _licenseNumberController),
-            _buildTextField("Registration Number", _registrationNumberController),
-            _buildTextField("Seating Capacity", _seatingCapacityController),
-
+            // _buildTextField("Vehicle Make", _makeController),
+            // _buildTextField("Vehicle Model", _modelController),
+            // _buildTextField("Vehicle Year", _yearController),
+            // _buildTextField("Vehicle Color", _colorController),
+            // _buildTextField("License Number", _licenseNumberController),
+            // _buildTextField("Registration Number", _registrationNumberController),
+            // _buildTextField("Seating Capacity", _seatingCapacityController),
+            buildTextField(label: "Vehicle Make", controller: _makeController),
+            buildTextField(label: "Vehicle Model", controller: _modelController),
+            buildTextField(label: "Vehicle Year", controller: _yearController),
+            buildTextField(label: "Vehicle Color", controller: _colorController),
+            buildTextField(label: "License Number", controller: _licenseNumberController),
+            buildTextField(label: "Registration Number", controller: _registrationNumberController),
+            buildTextField(
+              label: "Seating Capacity",
+              controller: _seatingCapacityController,
+              keyboardType: TextInputType.number,
+            ),
             SizedBox(height: 20),
 
             /// Vehicle Image Upload
