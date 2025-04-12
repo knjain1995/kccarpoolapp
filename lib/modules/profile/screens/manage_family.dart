@@ -259,17 +259,24 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
             SizedBox(height: 20),
 
             /// Common Fields for Both Adult & Child
-            _buildTextField("Full Name", _nameController),
-            _buildTextField("Email (Optional)", _emailController),
-            _buildTextField("Phone Number (Optional)", _phoneController),
+            // _buildTextField("Full Name", _nameController),
+            // _buildTextField("Email (Optional)", _emailController),
+            // _buildTextField("Phone Number (Optional)", _phoneController),
+            buildTextField(label: "Full Name", controller: _nameController, enabled: true),
+            buildTextField(label: "Email (Optional)", controller: _emailController, enabled: true),
+            buildTextField(label: "Phone Number (Optional)", controller: _phoneController, enabled: true),
+
 
             /// Fields only for Child
             if (!_isAdult) ...[
               _buildDatePickerField("Date of Birth", _dateOfBirthController, _pickDateOfBirth),
+              buildTextField(label: "School Name", controller: _schoolNameController, enabled: false),
+              buildTextField(label: "School ID No.", controller: _schoolIdNoController, enabled: false),
+              buildTextField(label: "Grade", controller: _gradeController, enabled: false),
               // _buildTextField("Date of Birth", _dateOfBirthController),
-              _buildTextField("School Name", _schoolNameController),
-              _buildTextField("School ID No.", _schoolIdNoController),
-              _buildTextField("Grade", _gradeController),
+              // _buildTextField("School Name", _schoolNameController),
+              // _buildTextField("School ID No.", _schoolIdNoController),
+              // _buildTextField("Grade", _gradeController),
 
               /// Gender Selection
               DropdownButtonFormField<String>(
@@ -307,14 +314,15 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
 
             /// Driver's License Upload (Only for Adults)
             // if (_isAdult) _buildFileUploadSection("Driver License (Optional)", _driverLicense, "driverLicense"),
-            buildFileUploadSection(
-              context: context,
-              label: "Driver License (Optional)",
-              fileType: "driverLicense",
-              currentPath: _driverLicense,
-              firebaseFunctions: _firebaseFunctions,
-              onFilePicked: (path) => setState(() => _driverLicense = path),
-            ),
+            if (_isAdult)
+              buildFileUploadSection(
+                context: context,
+                label: "Driver License (Optional)",
+                fileType: "driverLicense",
+                currentPath: _driverLicense,
+                firebaseFunctions: _firebaseFunctions,
+                onFilePicked: (path) => setState(() => _driverLicense = path),
+              ),
 
             /// School ID Upload (Only for Children)
             // if (!_isAdult) _buildFileUploadSection("School ID", _schoolId, "schoolId"),
@@ -369,16 +377,16 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
     );
   }
 
-  /// Builds a text field
-  Widget _buildTextField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(labelText: label),
-      ),
-    );
-  }
+  // /// Builds a text field
+  // Widget _buildTextField(String label, TextEditingController controller) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 8),
+  //     child: TextField(
+  //       controller: controller,
+  //       decoration: InputDecoration(labelText: label),
+  //     ),
+  //   );
+  // }
 
 //   // /// Builds a file upload button
 //   Widget _buildFileUploadSection(String label, String? filePath, String fileType) {
