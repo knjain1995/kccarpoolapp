@@ -78,80 +78,42 @@ Widget buildTextField({
   );
 }
 
-// /// 🗓️ Builds a styled date picker field used in forms (e.g., DOB, event date)
+// /// 🗓️ Shared Date Picker Field
+// ///
+// /// Displays a label and the selected date. Triggers `onTap()` when tapped.
+// /// Doesn't include date picker logic — allows screens to handle their own `showDatePicker()`
+// /// constraints (e.g., future vs past dates).
 // Widget buildDatePickerField({
-//   required BuildContext context,
 //   required String label,
-//   required TextEditingController controller,
-//   required bool enabled,
-//   required void Function(DateTime selectedDate) onDateSelected,
+//   required DateTime? selectedDate,
+//   required VoidCallback onTap,
+//   bool asTextField = false,
 // }) {
-//   return Padding(
-//     padding: const EdgeInsets.symmetric(vertical: 8.0),
-//     child: TextField(
-//       controller: controller,
-//       readOnly: true, // Always readonly — opens date picker on tap
-//       enabled: enabled,
-//       decoration: InputDecoration(
-//         labelText: label,
-//         suffixIcon: Icon(Icons.calendar_today),
-//         border: OutlineInputBorder(),
+//   final String displayText = selectedDate != null
+//       ? "${selectedDate.day.toString().padLeft(2, '0')}/"
+//         "${selectedDate.month.toString().padLeft(2, '0')}/"
+//         "${selectedDate.year}"
+//       : label;
+
+//   if (asTextField) {
+//     return Padding(
+//       padding: const EdgeInsets.symmetric(vertical: 8),
+//       child: TextField(
+//         readOnly: true,
+//         onTap: onTap,
+//         decoration: InputDecoration(
+//           labelText: label,
+//           hintText: displayText,
+//           suffixIcon: Icon(Icons.calendar_today),
+//         ),
 //       ),
-//       onTap: enabled
-//           ? () async {
-//               FocusScope.of(context).unfocus(); // Dismiss keyboard
+//     );
+//   }
 
-//               DateTime? pickedDate = await showDatePicker(
-//                 context: context,
-//                 initialDate: DateTime.now(),
-//                 firstDate: DateTime(1900),
-//                 lastDate: DateTime(2100),
-//               );
-
-//               if (pickedDate != null) {
-//                 controller.text = "${pickedDate.toLocal()}".split(' ')[0]; // Format: yyyy-MM-dd
-//                 onDateSelected(pickedDate);
-//               }
-//             }
-//           : null,
-//     ),
-//   );
-// }
-
-// /// ⏰ Builds a time picker field for selecting a time (e.g., departure time)
-// Widget buildTimePickerField({
-//   required BuildContext context,
-//   required String label,
-//   required TextEditingController controller,
-//   required bool enabled,
-//   required void Function(TimeOfDay selectedTime) onTimeSelected,
-// }) {
-//   return Padding(
-//     padding: const EdgeInsets.symmetric(vertical: 8.0),
-//     child: TextField(
-//       controller: controller,
-//       readOnly: true,
-//       enabled: enabled,
-//       decoration: InputDecoration(
-//         labelText: label,
-//         suffixIcon: Icon(Icons.access_time),
-//         border: OutlineInputBorder(),
-//       ),
-//       onTap: enabled
-//           ? () async {
-//               FocusScope.of(context).unfocus(); // Dismiss keyboard
-//               TimeOfDay? picked = await showTimePicker(
-//                 context: context,
-//                 initialTime: TimeOfDay.now(),
-//               );
-
-//               if (picked != null) {
-//                 controller.text = picked.format(context);
-//                 onTimeSelected(picked);
-//               }
-//             }
-//           : null,
-//     ),
+//   return ListTile(
+//     title: Text(displayText),
+//     trailing: Icon(Icons.calendar_today),
+//     onTap: onTap,
 //   );
 // }
 

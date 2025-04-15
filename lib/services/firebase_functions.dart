@@ -594,6 +594,10 @@ class FirebaseFunctions {
 
         // ✅ New field for visibility and future invite logic
         "familyId": familyId,
+
+        // 🔐 New fields for join flow
+        "requestedUserIds": [],
+        "invitedUserIds": [],
       });
 
       print("✅ Carpool successfully created in flat structure!");
@@ -801,5 +805,62 @@ class FirebaseFunctions {
     }
 
     return resolvedParticipants;
+  }
+
+  /// 📦 Function: getExploreCarpools
+  ///
+  /// This function retrieves carpools that the logged-in user might want to join.
+  /// It excludes:
+  /// - Carpools owned by the user’s family
+  /// - Carpools where the user is already a confirmed participant
+  ///
+  /// These carpools will be shown on the ExploreCarpoolsScreen.
+  Future<List<Map<String, dynamic>>> getExploreCarpools() async {
+    try {
+      // Step 1: Get the currently logged-in user’s UID
+      final String userId = FirebaseAuth.instance.currentUser!.uid;
+
+      // Step 2: Fetch the user's document from the 'users' collection to retrieve their familyId
+      final DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection("users").doc(userId).get();
+
+      if (!userDoc.exists) {
+        throw Exception("User document not found.");
+      }
+
+      // Extract the familyId from the user document
+      final String familyId = (userDoc.data() as Map<String, dynamic>)["familyId"];
+
+      // Step 3: Query the 'carpools' collection with filters:
+      // - The carpool must NOT belong to the same family
+      // - The current user must NOT already be a confirmed participant
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection("carpools")
+          .where("familyId", isNotEqualTo: familyId) // Exclude same family carpools
+          .get();
+
+      // Step 4: Filter out carpools that already include the user in 'carpoolParticipants'
+      final List<Map<String, dynamic>> exploreCarpools = [];
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        // Skip any carpool where user is already in the confirmed participants list
+        final List<dynamic> participants = data["carpoolParticipants"] ?? [];
+        if (!participants.contains(userId)) {
+          // Append carpool data to the results list
+          exploreCarpools.add({
+            ...data,
+            "carpoolId": doc.id, // Add Firestore document ID
+          });
+        }
+      }
+
+      // Step 5: Return the filtered carpools
+      return exploreCarpools;
+    } catch (e) {
+      print("🔥 Error fetching explore carpools: $e");
+      throw Exception("Failed to fetch explore carpools.");
+    }
   }
 }

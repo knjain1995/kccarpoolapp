@@ -696,6 +696,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:kccarpoolapp/utils/ui_helpers.dart'; // For buildTextField
 
 /// Screen for Creating a New Carpool
 class CreateCarpoolScreen extends StatefulWidget {
@@ -1194,13 +1195,13 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
   }
 
   
-  /// Generic text field builder
-  Widget _buildTextField(String label, TextEditingController controller, {TextInputType keyboardType = TextInputType.text}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TextField(controller: controller, decoration: InputDecoration(labelText: label), keyboardType: keyboardType),
-    );
-  }
+  // /// Generic text field builder
+  // Widget _buildTextField(String label, TextEditingController controller, {TextInputType keyboardType = TextInputType.text}) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 8),
+  //     child: TextField(controller: controller, decoration: InputDecoration(labelText: label), keyboardType: keyboardType),
+  //   );
+  // }
 
   /// Date-Time Picker UI
   Widget _buildDateTimePicker(String label, dynamic value, VoidCallback onTap) {
@@ -1301,9 +1302,12 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
         padding: EdgeInsets.all(20),
         child: Column(
           children: [
-            _buildTextField("Carpool Name", _carpoolNameController),
-            _buildTextField("Start Location", _routeStartController),
-            _buildTextField("End Location", _routeEndController),
+            // _buildTextField("Carpool Name", _carpoolNameController),
+            // _buildTextField("Start Location", _routeStartController),
+            // _buildTextField("End Location", _routeEndController),
+            buildTextField(label: "Carpool Name", controller: _carpoolNameController),
+            buildTextField(label: "Start Location", controller: _routeStartController),
+            buildTextField(label: "End Location", controller: _routeEndController),
 
             _buildDateTimePicker("Select Date", _selectedDate, _pickDate),
             _buildDateTimePicker("Select Time", _selectedTime, _pickTime),
@@ -1409,15 +1413,22 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
             ],
 
             // Carpool Capacity
-
-            // _buildTextField("Capacity", _capacityController, keyboardType: TextInputType.number),
-            _buildTextField(
-              _vehicleMaxCapacity != null
+            buildTextField(
+              label: _vehicleMaxCapacity != null
                   ? "Capacity (Max: $_vehicleMaxCapacity)"
                   : "Capacity",
-              _capacityController,
+              controller: _capacityController,
               keyboardType: TextInputType.number,
             ),
+
+            // _buildTextField("Capacity", _capacityController, keyboardType: TextInputType.number),
+            // _buildTextField(
+            //   _vehicleMaxCapacity != null
+            //       ? "Capacity (Max: $_vehicleMaxCapacity)"
+            //       : "Capacity",
+            //   _capacityController,
+            //   keyboardType: TextInputType.number,
+            // ),
 
             // Return Trip Toggle
             SwitchListTile(
@@ -2259,9 +2270,9 @@ class _ManageFamilyScreenState extends State<ManageFamilyScreen> {
             /// Fields only for Child
             if (!_isAdult) ...[
               _buildDatePickerField("Date of Birth", _dateOfBirthController, _pickDateOfBirth),
-              buildTextField(label: "School Name", controller: _schoolNameController, enabled: false),
-              buildTextField(label: "School ID No.", controller: _schoolIdNoController, enabled: false),
-              buildTextField(label: "Grade", controller: _gradeController, enabled: false),
+              buildTextField(label: "School Name", controller: _schoolNameController, enabled: true),
+              buildTextField(label: "School ID No.", controller: _schoolIdNoController, enabled: true),
+              buildTextField(label: "Grade", controller: _gradeController, enabled: true),
               // _buildTextField("Date of Birth", _dateOfBirthController),
               // _buildTextField("School Name", _schoolNameController),
               // _buildTextField("School ID No.", _schoolIdNoController),
@@ -4210,6 +4221,47 @@ Widget buildTextField({
     ),
   );
 }
+
+// /// 🗓️ Shared Date Picker Field
+// ///
+// /// Displays a label and the selected date. Triggers `onTap()` when tapped.
+// /// Doesn't include date picker logic — allows screens to handle their own `showDatePicker()`
+// /// constraints (e.g., future vs past dates).
+// Widget buildDatePickerField({
+//   required String label,
+//   required DateTime? selectedDate,
+//   required VoidCallback onTap,
+//   bool asTextField = false,
+// }) {
+//   final String displayText = selectedDate != null
+//       ? "${selectedDate.day.toString().padLeft(2, '0')}/"
+//         "${selectedDate.month.toString().padLeft(2, '0')}/"
+//         "${selectedDate.year}"
+//       : label;
+
+//   if (asTextField) {
+//     return Padding(
+//       padding: const EdgeInsets.symmetric(vertical: 8),
+//       child: TextField(
+//         readOnly: true,
+//         onTap: onTap,
+//         decoration: InputDecoration(
+//           labelText: label,
+//           hintText: displayText,
+//           suffixIcon: Icon(Icons.calendar_today),
+//         ),
+//       ),
+//     );
+//   }
+
+//   return ListTile(
+//     title: Text(displayText),
+//     trailing: Icon(Icons.calendar_today),
+//     onTap: onTap,
+//   );
+// }
+
+
 
 
 // --------------------------------------------------
