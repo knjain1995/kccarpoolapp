@@ -863,4 +863,41 @@ class FirebaseFunctions {
       throw Exception("Failed to fetch explore carpools.");
     }
   }
+
+  /// 🚀 Adds the current user to a carpool's requestedUserIds list
+  ///
+  /// This is used when someone taps "Request to Join" on ExploreCarpoolsScreen.
+  /// Firestore rules are configured to only allow the current user to add themselves.
+  Future<void> requestToJoinCarpool(String carpoolId) async {
+    // Step 1: Get current user ID (requester)
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId == null) {
+      throw Exception("User not authenticated.");
+    }
+
+    try {
+      // Step 2: Reference the carpool document by its ID
+      DocumentReference carpoolRef =
+          FirebaseFirestore.instance.collection("carpools").doc(carpoolId);
+
+      // Step 3: Perform an atomic update by appending the current user's ID
+      await carpoolRef.update({
+        "requestedUserIds": FieldValue.arrayUnion([userId]) // 🔁 Add only if not already present
+      });
+
+      print("✅ Request to join carpool sent successfully.");
+    } catch (e) {
+      print("🔥 Error requesting to join carpool: $e");
+      throw Exception("Failed to request carpool.");
+    }
+  }
+
+  /// 🛑 Placeholder for cancelling a join request
+  /// (Full logic to be added in Phase 4)
+  Future<void> cancelJoinRequest(String carpoolId) async {
+    throw UnimplementedError("cancelJoinRequest() will be implemented in Phase 4.");
+  }
+
+
 }

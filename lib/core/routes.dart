@@ -4,6 +4,7 @@ import 'package:kccarpoolapp/modules/auth/screens/forgot_password_screen.dart';
 import 'package:kccarpoolapp/modules/auth/screens/login_screen.dart';
 import 'package:kccarpoolapp/modules/auth/screens/verification_screen.dart';
 import 'package:kccarpoolapp/modules/carpool/screens/create_carpool.dart';
+import 'package:kccarpoolapp/modules/carpool/screens/explore_carpools_screen.dart';
 import 'package:kccarpoolapp/modules/home/screens/home_screen.dart';
 import 'package:kccarpoolapp/modules/onboarding/onboarding_screen.dart';
 import 'package:kccarpoolapp/modules/profile/screens/manage_family.dart';
@@ -23,6 +24,7 @@ class AppRoutes {
   static const String manageVehicles = 'manage-vehicles';
   static const String createCarpool = '/createCarpool';
   static const String carpoolList = '/carpoolList';
+  static const String exploreCarpools = '/explore-carpools';
 
 
   static Map<String, WidgetBuilder> routes = {
@@ -36,5 +38,6 @@ class AppRoutes {
     manageVehicles: (context) => ManageVehiclesScreen(),
     createCarpool: (context) => CreateCarpoolScreen(),
     carpoolList: (context) => CarpoolListScreen(),
+    exploreCarpools: (context) => ExploreCarpoolsScreen(),
   };
 }
