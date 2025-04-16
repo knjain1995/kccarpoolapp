@@ -22,30 +22,75 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     _loadExploreCarpools(); // Load available carpools when screen loads
   }
 
-  /// 🔄 Loads all carpools that the user can request to join
+  /// 🔍 Loads carpools from other families for the Explore screen.
+  /// This function performs the following:
+  /// 1. Fetch carpools the user can explore (i.e. not created by their family and not already joined)
+  /// 2. Enrich each carpool with required display fields for the CarpoolCard:
+  ///    - driverName, driverPhoto
+  ///    - vehicleMakeModel, vehicleImage
+  ///    - resolvedParticipants (full participant info)
+  /// 3. Set the enriched list in state for rendering
   Future<void> _loadExploreCarpools() async {
-    setState(() => _isLoading = true); // 🌀 Show loading spinner
+    // Step 1: Show loading indicator while data is being fetched
+    setState(() => _isLoading = true);
 
     try {
-      // 🔹 Fetch available carpools (based on familyId + participation exclusion)
-      final List<Map<String, dynamic>> carpools = await _firebaseFunctions.getExploreCarpools();
-
-      // 🔹 Fetch current user's UID for later use in button state
+      // Step 2: Get the currently logged-in user's UID
       final String userId = _firebaseFunctions.getCurrentUserId() ?? "";
 
+      // Step 3: Fetch carpools from other families that the user hasn't joined
+      final List<Map<String, dynamic>> exploreCarpools =
+          await _firebaseFunctions.getExploreCarpools();
+
+      // Step 4: Enrich each carpool with the fields expected by CarpoolCard
+      final List<Map<String, dynamic>> enrichedCarpools = [];
+
+      for (final carpool in exploreCarpools) {
+        // Get vehicle data from Firestore using carpoolVehicleId
+        final vehicleData =
+            await _firebaseFunctions.getVehicleById(carpool['carpoolVehicleId']);
+
+        // Get driver user data using carpoolDriverId
+        final driverData = await _firebaseFunctions.getDriverById(
+          driverId: carpool['carpoolDriverId'],
+        );
+
+        // Get list of full participant documents based on carpoolParticipants field
+        final resolvedParticipants = await _firebaseFunctions.getCarpoolParticipants(
+          carpoolDriverId: carpool['carpoolDriverId'],
+          participantIds: List<String>.from(carpool['carpoolParticipants'] ?? []),
+        );
+
+        // Flatten the required fields so CarpoolCard works correctly
+        carpool['driverName'] = driverData?['fullName'] ?? "Unknown Driver";
+        carpool['driverPhoto'] = driverData?['profilePhoto'];
+        carpool['vehicleMakeModel'] = vehicleData != null
+            ? "${vehicleData['vehicleMake']} ${vehicleData['vehicleModel']}"
+            : "Unknown Vehicle";
+        carpool['vehicleImage'] = vehicleData?['vehicleImage'];
+        carpool['resolvedParticipants'] = resolvedParticipants;
+
+        // Add this enriched carpool to the final list
+        enrichedCarpools.add(carpool);
+      }
+
+      // Step 5: Save the results to the screen's state to trigger UI rebuild
       setState(() {
-        _carpools = carpools;
+        _carpools = enrichedCarpools;
         _currentUserId = userId;
       });
     } catch (e) {
+      // Step 6: Handle errors (e.g., permission issues or Firestore failures)
       print("Error loading explore carpools: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to load carpools. Please try again.")),
+        SnackBar(content: Text("Failed to load carpools")),
       );
     } finally {
-      setState(() => _isLoading = false); // ✅ Stop loading
+      // Step 7: Stop showing the loading spinner
+      setState(() => _isLoading = false);
     }
   }
+
 
   /// 🚀 Triggered when user taps "Request to Join"
   Future<void> _handleJoinRequest(String carpoolId) async {
