@@ -985,13 +985,13 @@ class FirebaseFunctions {
     }
   }
 
-  /// ✅ Approves a join request by moving user to carpoolParticipants and removing from requestedUserIds
+  /// ✅ Approves a join request only if the carpool has available capacity
   Future<void> approveJoinRequest(String carpoolId, String userId) async {
     try {
       final DocumentReference carpoolRef =
           FirebaseFirestore.instance.collection("carpools").doc(carpoolId);
 
-      // Step 1: Read the current document (to verify user was in requestedUserIds)
+      // Step 1: Get the current state of the carpool
       final doc = await carpoolRef.get();
 
       if (!doc.exists) {
@@ -999,14 +999,22 @@ class FirebaseFunctions {
       }
 
       final data = doc.data() as Map<String, dynamic>;
-      final List<dynamic> requested = data['requestedUserIds'] ?? [];
 
-      // Step 2: Ensure the user actually requested to join
+      final List<dynamic> requested = data['requestedUserIds'] ?? [];
+      final List<dynamic> participants = data['carpoolParticipants'] ?? [];
+      final int capacity = data['carpoolCapacity'] ?? 0;
+
+      // Step 2: Ensure the user is in the requestedUserIds list
       if (!requested.contains(userId)) {
         throw Exception("User did not request to join");
       }
 
-      // Step 3: Perform atomic update
+      // Step 3: Check if carpool is already full
+      if (participants.length >= capacity) {
+        throw Exception("Carpool is already full");
+      }
+
+      // Step 4: Perform the approval if there's room
       await carpoolRef.update({
         "carpoolParticipants": FieldValue.arrayUnion([userId]),
         "requestedUserIds": FieldValue.arrayRemove([userId]),
@@ -1015,9 +1023,10 @@ class FirebaseFunctions {
       print("✅ Approved join request for $userId in $carpoolId");
     } catch (e) {
       print("🔥 Error approving join request: $e");
-      throw Exception("Failed to approve join request");
+      throw Exception("Failed to approve join request: ${e.toString()}");
     }
   }
+
 
   /// 🛑 Denies a join request by removing the user from requestedUserIds only
   Future<void> denyJoinRequest(String carpoolId, String userId) async {

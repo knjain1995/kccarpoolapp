@@ -44,12 +44,13 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
   Future<void> _approveRequest(String carpoolId, String userId) async {
     try {
       await _firebaseFunctions.approveJoinRequest(carpoolId, userId);
-      _loadJoinRequests(); // Refresh the list
+      _loadJoinRequests(); // Refresh
     } catch (e) {
-      print("Approval failed: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to approve request")),
-      );
+      final message = e.toString().contains("full")
+          ? "This carpool is already at full capacity."
+          : "Failed to approve request.";
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
