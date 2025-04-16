@@ -893,11 +893,32 @@ class FirebaseFunctions {
     }
   }
 
-  /// 🛑 Placeholder for cancelling a join request
-  /// (Full logic to be added in Phase 4)
+  /// ❌ Cancels a join request for a carpool by removing the user's UID
+  ///
+  /// This is used when a user taps "Cancel Request" on a carpool they've previously requested to join.
   Future<void> cancelJoinRequest(String carpoolId) async {
-    throw UnimplementedError("cancelJoinRequest() will be implemented in Phase 4.");
-  }
+    // Step 1: Get the currently logged-in user ID
+    final String? userId = FirebaseAuth.instance.currentUser?.uid;
 
+    if (userId == null) {
+      throw Exception("User not authenticated.");
+    }
+
+    try {
+      // Step 2: Reference the carpool document in Firestore
+      final DocumentReference carpoolRef =
+          FirebaseFirestore.instance.collection("carpools").doc(carpoolId);
+
+      // Step 3: Perform atomic update to remove the user's UID from requestedUserIds
+      await carpoolRef.update({
+        "requestedUserIds": FieldValue.arrayRemove([userId])
+      });
+
+      print("✅ Join request cancelled successfully.");
+    } catch (e) {
+      print("🔥 Error cancelling join request: $e");
+      throw Exception("Failed to cancel join request.");
+    }
+  }
 
 }
