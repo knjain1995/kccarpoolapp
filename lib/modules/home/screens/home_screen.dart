@@ -62,6 +62,18 @@ class HomeScreen extends StatelessWidget {
                 label: Text("My Carpools"),
               ),
 
+              ////////////////////////////////////
+              // Join Request Management Screen //
+              ////////////////////////////////////
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pushNamed(context, AppRoutes.joinRequests);
+                },
+                icon: Icon(Icons.mark_email_unread_outlined),
+                label: Text("Join Requests"),
+              ),
+
+
               /////////////////////////////
               // Explore Carpools Screen //
               /////////////////////////////

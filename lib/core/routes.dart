@@ -5,6 +5,7 @@ import 'package:kccarpoolapp/modules/auth/screens/login_screen.dart';
 import 'package:kccarpoolapp/modules/auth/screens/verification_screen.dart';
 import 'package:kccarpoolapp/modules/carpool/screens/create_carpool.dart';
 import 'package:kccarpoolapp/modules/carpool/screens/explore_carpools_screen.dart';
+import 'package:kccarpoolapp/modules/carpool/screens/join_requests_screen.dart';
 import 'package:kccarpoolapp/modules/home/screens/home_screen.dart';
 import 'package:kccarpoolapp/modules/onboarding/onboarding_screen.dart';
 import 'package:kccarpoolapp/modules/profile/screens/manage_family.dart';
@@ -25,6 +26,8 @@ class AppRoutes {
   static const String createCarpool = '/createCarpool';
   static const String carpoolList = '/carpoolList';
   static const String exploreCarpools = '/explore-carpools';
+  static const String joinRequests = '/join-requests';
+
 
 
   static Map<String, WidgetBuilder> routes = {
@@ -39,5 +42,6 @@ class AppRoutes {
     createCarpool: (context) => CreateCarpoolScreen(),
     carpoolList: (context) => CarpoolListScreen(),
     exploreCarpools: (context) => ExploreCarpoolsScreen(),
+    joinRequests: (context) => JoinRequestsScreen(),
   };
 }
