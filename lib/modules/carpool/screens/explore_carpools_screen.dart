@@ -19,7 +19,7 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadExploreCarpools(); // Load available carpools when screen loads
+    _loadExploreCarpools(); // Load available carpools wfrequestToJoinCarpoolhen screen loads
   }
 
   /// 🔍 Loads carpools from other families for the Explore screen.
@@ -91,16 +91,96 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     }
   }
 
+  /// 🔄 Fetches the current user's family members (excluding self)
+  Future<List<Map<String, dynamic>>> _fetchFamilyMembers() async {
+    try {
+      return await FirebaseFunctions().getFamilyMembersByIds(includePrimaryUser: false);
+    } catch (e) {
+      print("Error fetching family members: $e");
+      return [];
+    }
+  }
 
   /// 🚀 Triggered when user taps "Request to Join"
-  Future<void> _handleJoinRequest(String carpoolId) async {
+    Future<void> _handleJoinRequest(String carpoolId) async {
     try {
-      await _firebaseFunctions.requestToJoinCarpool(carpoolId); // 👈 Calls Firestore function
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Join request sent!")),
+      // Step 1: Fetch the family members (excluding self)
+      final members = await _firebaseFunctions.getFamilyMembersByIds(includePrimaryUser: false);
+
+      final currentUserId = _firebaseFunctions.getCurrentUserId();
+      final currentUserData = await _firebaseFunctions.getUserData();
+
+      if (currentUserId != null) {
+        members.insert(0, {
+          'id': currentUserId,
+          'fullName': currentUserData?['fullName'] ?? 'You',
+        });
+      }
+
+      if (members.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No family members available to join this carpool")),
+        );
+        return;
+      }
+
+      final Set<String> selected = {};
+
+      // Step 2: Show family member selection dialog
+      final List<String>? selectedMemberIds = await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text("Select Family Members"),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  return ListView(
+                    shrinkWrap: true,
+                    children: members.map((member) {
+                      final memberId = member["id"];
+                      final name = member["fullName"];
+                      return CheckboxListTile(
+                        title: Text(name),
+                        value: selected.contains(memberId),
+                        onChanged: (value) {
+                          setState(() {
+                            if (value == true) {
+                              selected.add(memberId);
+                            } else {
+                              selected.remove(memberId);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: Text("Cancel")),
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(context, selected.toList()),
+                  child: Text("Submit")),
+            ],
+          );
+        },
       );
-      _loadExploreCarpools(); // 🔄 Reload to reflect state change
+
+      // Step 3: Submit the join request
+      if (selectedMemberIds != null && selectedMemberIds.isNotEmpty) {
+        await _firebaseFunctions.requestToJoinCarpool(carpoolId, selectedMemberIds);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Join request sent!")),
+        );
+
+        _loadExploreCarpools(); // 🔄 Refresh to update button state
+      }
     } catch (e) {
+      print("Error in join request: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to send join request.")),
       );
@@ -124,9 +204,10 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
 
   /// 🔁 Builds dynamic button based on whether the user has requested to join already
   Widget _buildActionButton(Map<String, dynamic> carpool) {
-    final List<dynamic> requestedUsers = carpool['requestedUserIds'] ?? [];
-
-    final bool alreadyRequested = requestedUsers.contains(_currentUserId);
+    // final List<dynamic> requestedUsers = carpool['requestedUserIds'] ?? [];
+    // final bool alreadyRequested = requestedUsers.contains(_currentUserId);
+    final Map<String, dynamic> requestedUsers = carpool['requestedUsers'] ?? {};
+    final bool alreadyRequested = requestedUsers.containsKey(_currentUserId);
 
     return ElevatedButton.icon(
       icon: Icon(alreadyRequested ? Icons.cancel : Icons.group_add),
