@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Firestore interaction logic
 import 'package:kccarpoolapp/modules/carpool/widgets/carpool_card.dart'; // Existing reusable carpool UI
@@ -15,6 +16,9 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
   List<Map<String, dynamic>> _carpools = []; // Holds list of external carpools to display
   bool _isLoading = true; // Tracks whether data is being fetched
   String _currentUserId = ""; // Stores logged-in user's UID
+
+  // 📌 Keeps track of carpools for which the current user has sent a join request
+  Set<String> _requestedCarpools = {};
 
   @override
   void initState() {
@@ -79,6 +83,7 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
         _carpools = enrichedCarpools;
         _currentUserId = userId;
       });
+      await _loadRequestedCarpools();
     } catch (e) {
       // Step 6: Handle errors (e.g., permission issues or Firestore failures)
       print("Error loading explore carpools: $e");
@@ -206,8 +211,11 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
   Widget _buildActionButton(Map<String, dynamic> carpool) {
     // final List<dynamic> requestedUsers = carpool['requestedUserIds'] ?? [];
     // final bool alreadyRequested = requestedUsers.contains(_currentUserId);
-    final Map<String, dynamic> requestedUsers = carpool['requestedUsers'] ?? {};
-    final bool alreadyRequested = requestedUsers.containsKey(_currentUserId);
+    // final Map<String, dynamic> requestedUsers = carpool['requestedUsers'] ?? {};
+    // final bool alreadyRequested = requestedUsers.containsKey(_currentUserId);
+    // final bool alreadyRequested = _requestedCarpools.contains(carpoolId);
+    final String carpoolId = carpool['carpoolId'];
+    final bool alreadyRequested = _requestedCarpools.contains(carpool['carpoolId']);
 
     return ElevatedButton.icon(
       icon: Icon(alreadyRequested ? Icons.cancel : Icons.group_add),
@@ -219,6 +227,28 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
       },
     );
   }
+
+  /// Loads join request states for the current user across all explore carpools
+  Future<void> _loadRequestedCarpools() async {
+    final String? currentUserId = _firebaseFunctions.getCurrentUserId();
+    if (currentUserId == null) return;
+
+    final List<String> carpoolIds = _carpools.map((c) => c['carpoolId'] as String).toList();
+    final Set<String> requested = {};
+
+    for (final carpoolId in carpoolIds) {
+      bool hasRequested = await _firebaseFunctions.hasUserRequestedJoin(carpoolId);
+      if (hasRequested) {
+        requested.add(carpoolId);
+      }
+    }
+
+    setState(() {
+      _requestedCarpools = requested;
+    });
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
