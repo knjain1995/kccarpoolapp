@@ -933,69 +933,97 @@ class FirebaseFunctions {
   }
 
 
-  /// 📥 Fetches all carpools owned by the current user that have pending join requests
+  /// 📥 Fetches all join requests for carpools owned by the current user
   ///
-  /// Returns a list of carpool maps, each containing:
-  /// - Carpool metadata
-  /// - A list of user maps (requesters) under `joinRequestUsers`
+  /// Returns a list of maps, each representing a carpool + its associated join requests:
+  /// {
+  ///   "carpoolId": ...,
+  ///   "carpoolName": ...,
+  ///   ...
+  ///   "joinRequestUsers": [
+  ///     {
+  ///       "userId": ...,
+  ///       "fullName": ...,
+  ///       "profilePhoto": ...,
+  ///       "relationToChild": ...,
+  ///       "memberIds": [...]  // IDs of family members this user is requesting for
+  ///     },
+  ///     ...
+  ///   ]
+  /// }
   Future<List<Map<String, dynamic>>> getJoinRequestsForOwner() async {
-    // Step 1: Get the current user ID (this is the owner)
-    final String? userId = FirebaseAuth.instance.currentUser?.uid;
+    final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-    if (userId == null) {
-      throw Exception("User not logged in");
+    if (currentUserId == null) {
+      throw Exception("User not logged in.");
     }
 
     try {
-      // Step 2: Query all carpools where the logged-in user is the owner
-      final QuerySnapshot snapshot = await FirebaseFirestore.instance
+      // 🔍 Step 1: Fetch all carpools where the current user is the owner
+      final QuerySnapshot carpoolSnapshot = await FirebaseFirestore.instance
           .collection("carpools")
-          .where("carpoolOwnerId", isEqualTo: userId)
+          .where("carpoolOwnerId", isEqualTo: currentUserId)
           .get();
 
-      final List<Map<String, dynamic>> result = [];
+      List<Map<String, dynamic>> finalResults = [];
 
-      for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final List<dynamic> requestedUserIds = data['requestedUserIds'] ?? [];
+      // 🔄 Step 2: Loop through each carpool
+      for (final carpoolDoc in carpoolSnapshot.docs) {
+        final String carpoolId = carpoolDoc.id;
+        final Map<String, dynamic> carpoolData = carpoolDoc.data() as Map<String, dynamic>;
 
-        // Step 3: Skip carpools with no pending requests
-        if (requestedUserIds.isEmpty) continue;
+        // 📦 Prepare a container for join requests for this carpool
+        List<Map<String, dynamic>> joinRequestUsers = [];
 
-        // Step 4: Fetch full user details for each requester
-        final List<Map<String, dynamic>> requesters = [];
+        // 🗃️ Step 3: Read all documents from the joinRequests subcollection
+        final QuerySnapshot requestsSnapshot = await FirebaseFirestore.instance
+            .collection("carpools")
+            .doc(carpoolId)
+            .collection("joinRequests")
+            .get();
 
-        for (final String requesterId in requestedUserIds) {
-          final DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        // 🧠 Step 4: For each join request, fetch the user data of the requester
+        for (final requestDoc in requestsSnapshot.docs) {
+          final Map<String, dynamic> requestData = requestDoc.data() as Map<String, dynamic>;
+          final String requesterId = requestData["requesterId"];
+
+          // ✅ Fetch the requester's user document
+          final DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
               .collection("users")
               .doc(requesterId)
               .get();
 
-          if (userDoc.exists) {
-            final requesterData = userDoc.data() as Map<String, dynamic>;
-            requesters.add({
-              'userId': requesterId,
-              'fullName': requesterData['fullName'] ?? "Unknown User",
-              'profilePhoto': requesterData['profilePhoto'],
-              'relationToChild': requesterData['relationToChild'],
+          if (userSnapshot.exists) {
+            final userData = userSnapshot.data() as Map<String, dynamic>;
+
+            // 🧾 Merge user data with request info
+            joinRequestUsers.add({
+              "userId": requesterId,
+              "fullName": userData["fullName"] ?? "Unknown User",
+              "profilePhoto": userData["profilePhoto"],
+              "relationToChild": userData["relationToChild"],
+              "memberIds": requestData["memberIds"] ?? [],
             });
           }
         }
 
-        // Step 5: Merge carpool data + join request info
-        result.add({
-          ...data,
-          'carpoolId': doc.id,
-          'joinRequestUsers': requesters, // 👈 Used by the UI
-        });
+        // 💡 Step 5: Only include carpools with join requests
+        if (joinRequestUsers.isNotEmpty) {
+          finalResults.add({
+            ...carpoolData,
+            "carpoolId": carpoolId,
+            "joinRequestUsers": joinRequestUsers,
+          });
+        }
       }
 
-      return result;
+      return finalResults;
     } catch (e) {
       print("🔥 Error fetching join requests: $e");
-      throw Exception("Failed to fetch join requests");
+      throw Exception("Failed to fetch join requests.");
     }
   }
+
 
   /// ✅ Approves a join request only if the carpool has available capacity
   Future<void> approveJoinRequest(String carpoolId, String userId) async {

@@ -1478,6 +1478,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 // 📌 Filename: explore_carpools_screen.dart
 // 📂 Location: modules\carpool\screens
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Firestore interaction logic
 import 'package:kccarpoolapp/modules/carpool/widgets/carpool_card.dart'; // Existing reusable carpool UI
@@ -1495,6 +1496,9 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
   List<Map<String, dynamic>> _carpools = []; // Holds list of external carpools to display
   bool _isLoading = true; // Tracks whether data is being fetched
   String _currentUserId = ""; // Stores logged-in user's UID
+
+  // 📌 Keeps track of carpools for which the current user has sent a join request
+  Set<String> _requestedCarpools = {};
 
   @override
   void initState() {
@@ -1689,8 +1693,9 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     // final bool alreadyRequested = requestedUsers.contains(_currentUserId);
     // final Map<String, dynamic> requestedUsers = carpool['requestedUsers'] ?? {};
     // final bool alreadyRequested = requestedUsers.containsKey(_currentUserId);
+    // final bool alreadyRequested = _requestedCarpools.contains(carpoolId);
     final String carpoolId = carpool['carpoolId'];
-    final bool alreadyRequested = _requestedCarpools.contains(carpoolId);
+    final bool alreadyRequested = _requestedCarpools.contains(carpool['carpoolId']);
 
     return ElevatedButton.icon(
       icon: Icon(alreadyRequested ? Icons.cancel : Icons.group_add),
@@ -1712,14 +1717,8 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     final Set<String> requested = {};
 
     for (final carpoolId in carpoolIds) {
-      final doc = await FirebaseFirestore.instance
-          .collection("carpools")
-          .doc(carpoolId)
-          .collection("joinRequests")
-          .doc(currentUserId)
-          .get();
-
-      if (doc.exists) {
+      bool hasRequested = await _firebaseFunctions.hasUserRequestedJoin(carpoolId);
+      if (hasRequested) {
         requested.add(carpoolId);
       }
     }
@@ -1728,6 +1727,7 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
       _requestedCarpools = requested;
     });
   }
+
 
 
   @override
@@ -4676,8 +4676,6 @@ class FirebaseFunctions {
     }
   }
 
-
-
   /// ❌ Cancels a join request for a carpool by removing the user's UID
   ///
   /// This is used when a user taps "Cancel Request" on a carpool they've previously requested to join.
@@ -4846,6 +4844,22 @@ class FirebaseFunctions {
       throw Exception("Failed to deny join request");
     }
   }
+
+  /// Checks if the current user has already requested to join the given carpool
+  Future<bool> hasUserRequestedJoin(String carpoolId) async {
+    final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return false;
+
+    final DocumentSnapshot requestDoc = await FirebaseFirestore.instance
+      .collection("carpools")
+      .doc(carpoolId)
+      .collection("joinRequests")
+      .doc(currentUserId)
+      .get();
+
+    return requestDoc.exists;
+  }
+
 }
 
 // --------------------------------------------------
