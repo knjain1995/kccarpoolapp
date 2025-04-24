@@ -598,6 +598,7 @@ class FirebaseFunctions {
         // 🔐 New fields for join flow
         "requestedUserIds": [],
         "invitedUserIds": [],
+        "joinRequestIds": [], // 🔐 Ensures Firestore allows appending to this later
       });
 
       print("✅ Carpool successfully created in flat structure!");
@@ -864,43 +865,94 @@ class FirebaseFunctions {
     }
   }
 
-  /// 🚀 Adds the current user to a carpool's requestedUserIds list
-  ///
-  /// This is used when someone taps "Request to Join" on ExploreCarpoolsScreen.
-  /// Firestore rules are configured to only allow the current user to add themselves.
-  /// ✅ Sends a join request for selected family members to a carpool.
-  /// Stores the request as: requestedUsers: { currentUserUid: [memberUid1, memberUid2] }
-  /// Sends a join request by creating a document under
-  /// carpools/{carpoolId}/joinRequests/{requesterId}
-  Future<void> requestToJoinCarpool(String carpoolId, List<String> memberUserIds) async {
-    try {
-      final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+  // /// 🚀 Adds the current user to a carpool's requestedUserIds list
+  // ///
+  // /// This is used when someone taps "Request to Join" on ExploreCarpoolsScreen.
+  // /// Firestore rules are configured to only allow the current user to add themselves.
+  // /// ✅ Sends a join request for selected family members to a carpool.
+  // /// Stores the request as: requestedUsers: { currentUserUid: [memberUid1, memberUid2] }
+  // /// Sends a join request by creating a document under
+  // /// carpools/{carpoolId}/joinRequests/{requesterId}
+  // Future<void> requestToJoinCarpool(String carpoolId, List<String> memberUserIds) async {
+  //   try {
+  //     final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-      if (currentUserId == null) {
+  //     if (currentUserId == null) {
+  //       throw Exception("User not logged in.");
+  //     }
+
+  //     // Reference to the join request document inside the carpool's subcollection
+  //     final DocumentReference joinRequestRef = FirebaseFirestore.instance
+  //       .collection("carpools")
+  //       .doc(carpoolId)
+  //       .collection("joinRequests")
+  //       .doc(currentUserId);
+
+  //     // Payload for the join request document
+  //     final Map<String, dynamic> joinRequestData = {
+  //       "requesterId": currentUserId,
+  //       "memberIds": memberUserIds,
+  //       "timestamp": FieldValue.serverTimestamp(),
+  //     };
+
+  //     await joinRequestRef.set(joinRequestData);
+
+  //     print("✅ Join request submitted for carpool $carpoolId by $currentUserId for members: $memberUserIds");
+  //   } catch (e) {
+  //     print("🔥 Error submitting join request: $e");
+  //     throw Exception("Failed to send join request");
+  //   }
+  // }
+
+  /// 🔗 Submits a join request using the new flat collection structure
+  Future<void> requestToJoinCarpoolFlat({
+    required String carpoolId,
+    required List<String> memberUserIds,
+  }) async {
+    try {
+      final String? requesterId = FirebaseAuth.instance.currentUser?.uid;
+
+      if (requesterId == null) {
         throw Exception("User not logged in.");
       }
 
-      // Reference to the join request document inside the carpool's subcollection
-      final DocumentReference joinRequestRef = FirebaseFirestore.instance
-        .collection("carpools")
-        .doc(carpoolId)
-        .collection("joinRequests")
-        .doc(currentUserId);
+      final joinRequestRef = FirebaseFirestore.instance.collection("joinRequests").doc();
 
-      // Payload for the join request document
-      final Map<String, dynamic> joinRequestData = {
-        "requesterId": currentUserId,
-        "memberIds": memberUserIds,
+      // Create the join request document with required metadata
+      await joinRequestRef.set({
+        "requestId": joinRequestRef.id,           // ✅ Store requestId inside the document
+        "carpoolId": carpoolId,
+        "carpoolOwnerId": await _getCarpoolOwnerId(carpoolId),
+        "requesterId": requesterId,
+        "memberUserIds": memberUserIds,
+        "status": "pending",
         "timestamp": FieldValue.serverTimestamp(),
-      };
+      });
 
-      await joinRequestRef.set(joinRequestData);
+      // Also update the carpool document to track this join request ID
+      await FirebaseFirestore.instance
+          .collection("carpools")
+          .doc(carpoolId)
+          .update({
+            "joinRequestIds": FieldValue.arrayUnion([joinRequestRef.id])
+          });
 
-      print("✅ Join request submitted for carpool $carpoolId by $currentUserId for members: $memberUserIds");
+      print("✅ Join request submitted for carpool $carpoolId by $requesterId for members: $memberUserIds");
     } catch (e) {
       print("🔥 Error submitting join request: $e");
-      throw Exception("Failed to send join request");
+      throw Exception("Failed to send join request.");
     }
+  }
+
+  /// 🔎 Fetches the carpoolOwnerId from Firestore given the carpoolId
+  Future<String> _getCarpoolOwnerId(String carpoolId) async {
+    final doc = await FirebaseFirestore.instance.collection("carpools").doc(carpoolId).get();
+
+    if (!doc.exists || !doc.data()!.containsKey('carpoolOwnerId')) {
+      throw Exception("Carpool owner not found");
+    }
+
+    return doc.data()!['carpoolOwnerId'];
   }
 
   /// ❌ Cancels a join request for a carpool by removing the user's UID

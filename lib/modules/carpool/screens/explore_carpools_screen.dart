@@ -176,7 +176,10 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
 
       // Step 3: Submit the join request
       if (selectedMemberIds != null && selectedMemberIds.isNotEmpty) {
-        await _firebaseFunctions.requestToJoinCarpool(carpoolId, selectedMemberIds);
+        await _firebaseFunctions.requestToJoinCarpoolFlat(
+          carpoolId: carpoolId,
+          memberUserIds: selectedMemberIds, // from family selection dialog
+        );
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Join request sent!")),
