@@ -34,38 +34,36 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
   ///    - vehicleMakeModel, vehicleImage
   ///    - resolvedParticipants (full participant info)
   /// 3. Set the enriched list in state for rendering
+  /// 🔍 Loads carpools created by other families and enriches each for display.
+  /// Adds a flag `hasRequested` by checking the flat joinRequests collection.
   Future<void> _loadExploreCarpools() async {
-    // Step 1: Show loading indicator while data is being fetched
+    // Step 1: Show loading spinner
     setState(() => _isLoading = true);
 
     try {
-      // Step 2: Get the currently logged-in user's UID
       final String userId = _firebaseFunctions.getCurrentUserId() ?? "";
-
-      // Step 3: Fetch carpools from other families that the user hasn't joined
       final List<Map<String, dynamic>> exploreCarpools =
           await _firebaseFunctions.getExploreCarpools();
 
-      // Step 4: Enrich each carpool with the fields expected by CarpoolCard
       final List<Map<String, dynamic>> enrichedCarpools = [];
 
       for (final carpool in exploreCarpools) {
-        // Get vehicle data from Firestore using carpoolVehicleId
+        // Step 2: Enrich carpool with vehicle info
         final vehicleData =
             await _firebaseFunctions.getVehicleById(carpool['carpoolVehicleId']);
 
-        // Get driver user data using carpoolDriverId
+        // Step 3: Enrich carpool with driver info
         final driverData = await _firebaseFunctions.getDriverById(
           driverId: carpool['carpoolDriverId'],
         );
 
-        // Get list of full participant documents based on carpoolParticipants field
+        // Step 4: Resolve carpoolParticipants for display
         final resolvedParticipants = await _firebaseFunctions.getCarpoolParticipants(
           carpoolDriverId: carpool['carpoolDriverId'],
           participantIds: List<String>.from(carpool['carpoolParticipants'] ?? []),
         );
 
-        // Flatten the required fields so CarpoolCard works correctly
+        // Step 5: Populate required fields for CarpoolCard widget
         carpool['driverName'] = driverData?['fullName'] ?? "Unknown Driver";
         carpool['driverPhoto'] = driverData?['profilePhoto'];
         carpool['vehicleMakeModel'] = vehicleData != null
@@ -74,27 +72,34 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
         carpool['vehicleImage'] = vehicleData?['vehicleImage'];
         carpool['resolvedParticipants'] = resolvedParticipants;
 
-        // Add this enriched carpool to the final list
+        // ✅ NEW: Step 6 — Check if this user has already requested to join this carpool
+        final String requestId = '${carpool['carpoolId']}_$userId';
+        final DocumentSnapshot requestSnapshot = await FirebaseFirestore.instance
+            .collection('joinRequests')
+            .doc(requestId)
+            .get();
+
+        carpool['hasRequested'] = requestSnapshot.exists;
+
+        // Step 7: Add the enriched carpool to the final list
         enrichedCarpools.add(carpool);
       }
 
-      // Step 5: Save the results to the screen's state to trigger UI rebuild
+      // Step 8: Save data to state and stop loading
       setState(() {
         _carpools = enrichedCarpools;
         _currentUserId = userId;
       });
-      await _loadRequestedCarpools();
     } catch (e) {
-      // Step 6: Handle errors (e.g., permission issues or Firestore failures)
       print("Error loading explore carpools: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to load carpools")),
       );
     } finally {
-      // Step 7: Stop showing the loading spinner
       setState(() => _isLoading = false);
     }
   }
+
 
   /// 🔄 Fetches the current user's family members (excluding self)
   Future<List<Map<String, dynamic>>> _fetchFamilyMembers() async {
@@ -211,25 +216,22 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
   }
 
   /// 🔁 Builds dynamic button based on whether the user has requested to join already
+  /// 🎯 Renders the "Request to Join" / "Cancel Request" button for each carpool.
   Widget _buildActionButton(Map<String, dynamic> carpool) {
-    // final List<dynamic> requestedUsers = carpool['requestedUserIds'] ?? [];
-    // final bool alreadyRequested = requestedUsers.contains(_currentUserId);
-    // final Map<String, dynamic> requestedUsers = carpool['requestedUsers'] ?? {};
-    // final bool alreadyRequested = requestedUsers.containsKey(_currentUserId);
-    // final bool alreadyRequested = _requestedCarpools.contains(carpoolId);
-    final String carpoolId = carpool['carpoolId'];
-    final bool alreadyRequested = _requestedCarpools.contains(carpool['carpoolId']);
+    // ✅ New logic: flag comes from Firestore lookup done in `_loadExploreCarpools`
+    final bool alreadyRequested = carpool['hasRequested'] == true;
 
     return ElevatedButton.icon(
       icon: Icon(alreadyRequested ? Icons.cancel : Icons.group_add),
       label: Text(alreadyRequested ? "Cancel Request" : "Request to Join"),
       onPressed: () {
         alreadyRequested
-            ? _handleCancelRequest(carpool['carpoolId'])
-            : _handleJoinRequest(carpool['carpoolId']);
+            ? _handleCancelRequest(carpool['carpoolId']) // 🔁 cancel
+            : _handleJoinRequest(carpool['carpoolId']);  // ➕ send
       },
     );
   }
+
 
   /// Loads join request states for the current user across all explore carpools
   Future<void> _loadRequestedCarpools() async {
