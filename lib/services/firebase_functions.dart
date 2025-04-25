@@ -865,45 +865,6 @@ class FirebaseFunctions {
     }
   }
 
-  // /// 🚀 Adds the current user to a carpool's requestedUserIds list
-  // ///
-  // /// This is used when someone taps "Request to Join" on ExploreCarpoolsScreen.
-  // /// Firestore rules are configured to only allow the current user to add themselves.
-  // /// ✅ Sends a join request for selected family members to a carpool.
-  // /// Stores the request as: requestedUsers: { currentUserUid: [memberUid1, memberUid2] }
-  // /// Sends a join request by creating a document under
-  // /// carpools/{carpoolId}/joinRequests/{requesterId}
-  // Future<void> requestToJoinCarpool(String carpoolId, List<String> memberUserIds) async {
-  //   try {
-  //     final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
-  //     if (currentUserId == null) {
-  //       throw Exception("User not logged in.");
-  //     }
-
-  //     // Reference to the join request document inside the carpool's subcollection
-  //     final DocumentReference joinRequestRef = FirebaseFirestore.instance
-  //       .collection("carpools")
-  //       .doc(carpoolId)
-  //       .collection("joinRequests")
-  //       .doc(currentUserId);
-
-  //     // Payload for the join request document
-  //     final Map<String, dynamic> joinRequestData = {
-  //       "requesterId": currentUserId,
-  //       "memberIds": memberUserIds,
-  //       "timestamp": FieldValue.serverTimestamp(),
-  //     };
-
-  //     await joinRequestRef.set(joinRequestData);
-
-  //     print("✅ Join request submitted for carpool $carpoolId by $currentUserId for members: $memberUserIds");
-  //   } catch (e) {
-  //     print("🔥 Error submitting join request: $e");
-  //     throw Exception("Failed to send join request");
-  //   }
-  // }
-
   /// 🔗 Submits a join request using the new flat collection structure
   Future<void> requestToJoinCarpoolFlat({
     required String carpoolId,
@@ -916,7 +877,9 @@ class FirebaseFunctions {
         throw Exception("User not logged in.");
       }
 
-      final joinRequestRef = FirebaseFirestore.instance.collection("joinRequests").doc();
+      final String requestId = "${carpoolId}_$requesterId";
+      final joinRequestRef = FirebaseFirestore.instance.collection("joinRequests").doc(requestId);
+
 
       // Create the join request document with required metadata
       await joinRequestRef.set({
@@ -955,11 +918,10 @@ class FirebaseFunctions {
     return doc.data()!['carpoolOwnerId'];
   }
 
-  /// ❌ Cancels a join request for a carpool by removing the user's UID
+  /// ❌ Cancels a join request by deleting the flat joinRequest document
+  /// AND removing its ID from the corresponding carpool's `joinRequestIds` array.
   ///
-  /// This is used when a user taps "Cancel Request" on a carpool they've previously requested to join.
-  /// ❌ Cancels the current user's join request by removing their key from requestedUsers map
-  /// Cancels the user's join request by deleting the document from the subcollection
+  /// This is used when a user taps "Cancel Request" in the Explore Carpools screen.
   Future<void> cancelJoinRequest(String carpoolId) async {
     try {
       final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -968,21 +930,34 @@ class FirebaseFunctions {
         throw Exception("User not logged in.");
       }
 
-      // Reference to the join request document in the subcollection
-      final DocumentReference joinRequestRef = FirebaseFirestore.instance
-        .collection("carpools")
-        .doc(carpoolId)
-        .collection("joinRequests")
-        .doc(currentUserId);
+      // 🆔 The joinRequestId is in the format carpoolId_userId
+      final String joinRequestId = "${carpoolId}_$currentUserId";
 
+      // 📄 Reference to the flat joinRequests/{requestId} document
+      final DocumentReference joinRequestRef =
+          FirebaseFirestore.instance.collection("joinRequests").doc(joinRequestId);
+
+      // 📄 Reference to the carpool document
+      final DocumentReference carpoolRef =
+          FirebaseFirestore.instance.collection("carpools").doc(carpoolId);
+
+      // 🔁 Step 1: Remove the request ID from the carpool's joinRequestIds array
+      await carpoolRef.update({
+        "joinRequestIds": FieldValue.arrayRemove([joinRequestId])
+      });
+
+      // 🗑️ Step 2: Delete the join request document
       await joinRequestRef.delete();
 
-      print("❌ Join request cancelled for carpool $carpoolId by $currentUserId");
+      print("❌ Successfully cancelled join request for carpool $carpoolId by $currentUserId");
+
     } catch (e) {
       print("🔥 Error cancelling join request: $e");
-      throw Exception("Failed to cancel join request");
+      throw Exception("Failed to cancel join request.");
     }
   }
+
+
 
 
   /// 📥 Fetches all join requests for carpools owned by the current user

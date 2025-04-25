@@ -1514,38 +1514,36 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
   ///    - vehicleMakeModel, vehicleImage
   ///    - resolvedParticipants (full participant info)
   /// 3. Set the enriched list in state for rendering
+  /// 🔍 Loads carpools created by other families and enriches each for display.
+  /// Adds a flag `hasRequested` by checking the flat joinRequests collection.
   Future<void> _loadExploreCarpools() async {
-    // Step 1: Show loading indicator while data is being fetched
+    // Step 1: Show loading spinner
     setState(() => _isLoading = true);
 
     try {
-      // Step 2: Get the currently logged-in user's UID
       final String userId = _firebaseFunctions.getCurrentUserId() ?? "";
-
-      // Step 3: Fetch carpools from other families that the user hasn't joined
       final List<Map<String, dynamic>> exploreCarpools =
           await _firebaseFunctions.getExploreCarpools();
 
-      // Step 4: Enrich each carpool with the fields expected by CarpoolCard
       final List<Map<String, dynamic>> enrichedCarpools = [];
 
       for (final carpool in exploreCarpools) {
-        // Get vehicle data from Firestore using carpoolVehicleId
+        // Step 2: Enrich carpool with vehicle info
         final vehicleData =
             await _firebaseFunctions.getVehicleById(carpool['carpoolVehicleId']);
 
-        // Get driver user data using carpoolDriverId
+        // Step 3: Enrich carpool with driver info
         final driverData = await _firebaseFunctions.getDriverById(
           driverId: carpool['carpoolDriverId'],
         );
 
-        // Get list of full participant documents based on carpoolParticipants field
+        // Step 4: Resolve carpoolParticipants for display
         final resolvedParticipants = await _firebaseFunctions.getCarpoolParticipants(
           carpoolDriverId: carpool['carpoolDriverId'],
           participantIds: List<String>.from(carpool['carpoolParticipants'] ?? []),
         );
 
-        // Flatten the required fields so CarpoolCard works correctly
+        // Step 5: Populate required fields for CarpoolCard widget
         carpool['driverName'] = driverData?['fullName'] ?? "Unknown Driver";
         carpool['driverPhoto'] = driverData?['profilePhoto'];
         carpool['vehicleMakeModel'] = vehicleData != null
@@ -1554,27 +1552,34 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
         carpool['vehicleImage'] = vehicleData?['vehicleImage'];
         carpool['resolvedParticipants'] = resolvedParticipants;
 
-        // Add this enriched carpool to the final list
+        // ✅ NEW: Step 6 — Check if this user has already requested to join this carpool
+        final String requestId = '${carpool['carpoolId']}_$userId';
+        final DocumentSnapshot requestSnapshot = await FirebaseFirestore.instance
+            .collection('joinRequests')
+            .doc(requestId)
+            .get();
+
+        carpool['hasRequested'] = requestSnapshot.exists;
+
+        // Step 7: Add the enriched carpool to the final list
         enrichedCarpools.add(carpool);
       }
 
-      // Step 5: Save the results to the screen's state to trigger UI rebuild
+      // Step 8: Save data to state and stop loading
       setState(() {
         _carpools = enrichedCarpools;
         _currentUserId = userId;
       });
-      await _loadRequestedCarpools();
     } catch (e) {
-      // Step 6: Handle errors (e.g., permission issues or Firestore failures)
       print("Error loading explore carpools: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to load carpools")),
       );
     } finally {
-      // Step 7: Stop showing the loading spinner
       setState(() => _isLoading = false);
     }
   }
+
 
   /// 🔄 Fetches the current user's family members (excluding self)
   Future<List<Map<String, dynamic>>> _fetchFamilyMembers() async {
@@ -1691,25 +1696,22 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
   }
 
   /// 🔁 Builds dynamic button based on whether the user has requested to join already
+  /// 🎯 Renders the "Request to Join" / "Cancel Request" button for each carpool.
   Widget _buildActionButton(Map<String, dynamic> carpool) {
-    // final List<dynamic> requestedUsers = carpool['requestedUserIds'] ?? [];
-    // final bool alreadyRequested = requestedUsers.contains(_currentUserId);
-    // final Map<String, dynamic> requestedUsers = carpool['requestedUsers'] ?? {};
-    // final bool alreadyRequested = requestedUsers.containsKey(_currentUserId);
-    // final bool alreadyRequested = _requestedCarpools.contains(carpoolId);
-    final String carpoolId = carpool['carpoolId'];
-    final bool alreadyRequested = _requestedCarpools.contains(carpool['carpoolId']);
+    // ✅ New logic: flag comes from Firestore lookup done in `_loadExploreCarpools`
+    final bool alreadyRequested = carpool['hasRequested'] == true;
 
     return ElevatedButton.icon(
       icon: Icon(alreadyRequested ? Icons.cancel : Icons.group_add),
       label: Text(alreadyRequested ? "Cancel Request" : "Request to Join"),
       onPressed: () {
         alreadyRequested
-            ? _handleCancelRequest(carpool['carpoolId'])
-            : _handleJoinRequest(carpool['carpoolId']);
+            ? _handleCancelRequest(carpool['carpoolId']) // 🔁 cancel
+            : _handleJoinRequest(carpool['carpoolId']);  // ➕ send
       },
     );
   }
+
 
   /// Loads join request states for the current user across all explore carpools
   Future<void> _loadRequestedCarpools() async {
@@ -4641,45 +4643,6 @@ class FirebaseFunctions {
     }
   }
 
-  // /// 🚀 Adds the current user to a carpool's requestedUserIds list
-  // ///
-  // /// This is used when someone taps "Request to Join" on ExploreCarpoolsScreen.
-  // /// Firestore rules are configured to only allow the current user to add themselves.
-  // /// ✅ Sends a join request for selected family members to a carpool.
-  // /// Stores the request as: requestedUsers: { currentUserUid: [memberUid1, memberUid2] }
-  // /// Sends a join request by creating a document under
-  // /// carpools/{carpoolId}/joinRequests/{requesterId}
-  // Future<void> requestToJoinCarpool(String carpoolId, List<String> memberUserIds) async {
-  //   try {
-  //     final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
-  //     if (currentUserId == null) {
-  //       throw Exception("User not logged in.");
-  //     }
-
-  //     // Reference to the join request document inside the carpool's subcollection
-  //     final DocumentReference joinRequestRef = FirebaseFirestore.instance
-  //       .collection("carpools")
-  //       .doc(carpoolId)
-  //       .collection("joinRequests")
-  //       .doc(currentUserId);
-
-  //     // Payload for the join request document
-  //     final Map<String, dynamic> joinRequestData = {
-  //       "requesterId": currentUserId,
-  //       "memberIds": memberUserIds,
-  //       "timestamp": FieldValue.serverTimestamp(),
-  //     };
-
-  //     await joinRequestRef.set(joinRequestData);
-
-  //     print("✅ Join request submitted for carpool $carpoolId by $currentUserId for members: $memberUserIds");
-  //   } catch (e) {
-  //     print("🔥 Error submitting join request: $e");
-  //     throw Exception("Failed to send join request");
-  //   }
-  // }
-
   /// 🔗 Submits a join request using the new flat collection structure
   Future<void> requestToJoinCarpoolFlat({
     required String carpoolId,
@@ -4692,7 +4655,9 @@ class FirebaseFunctions {
         throw Exception("User not logged in.");
       }
 
-      final joinRequestRef = FirebaseFirestore.instance.collection("joinRequests").doc();
+      final String requestId = "${carpoolId}_$requesterId";
+      final joinRequestRef = FirebaseFirestore.instance.collection("joinRequests").doc(requestId);
+
 
       // Create the join request document with required metadata
       await joinRequestRef.set({
@@ -4731,11 +4696,10 @@ class FirebaseFunctions {
     return doc.data()!['carpoolOwnerId'];
   }
 
-  /// ❌ Cancels a join request for a carpool by removing the user's UID
+  /// ❌ Cancels a join request by deleting the flat joinRequest document
+  /// AND removing its ID from the corresponding carpool's `joinRequestIds` array.
   ///
-  /// This is used when a user taps "Cancel Request" on a carpool they've previously requested to join.
-  /// ❌ Cancels the current user's join request by removing their key from requestedUsers map
-  /// Cancels the user's join request by deleting the document from the subcollection
+  /// This is used when a user taps "Cancel Request" in the Explore Carpools screen.
   Future<void> cancelJoinRequest(String carpoolId) async {
     try {
       final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
@@ -4744,21 +4708,34 @@ class FirebaseFunctions {
         throw Exception("User not logged in.");
       }
 
-      // Reference to the join request document in the subcollection
-      final DocumentReference joinRequestRef = FirebaseFirestore.instance
-        .collection("carpools")
-        .doc(carpoolId)
-        .collection("joinRequests")
-        .doc(currentUserId);
+      // 🆔 The joinRequestId is in the format carpoolId_userId
+      final String joinRequestId = "${carpoolId}_$currentUserId";
 
+      // 📄 Reference to the flat joinRequests/{requestId} document
+      final DocumentReference joinRequestRef =
+          FirebaseFirestore.instance.collection("joinRequests").doc(joinRequestId);
+
+      // 📄 Reference to the carpool document
+      final DocumentReference carpoolRef =
+          FirebaseFirestore.instance.collection("carpools").doc(carpoolId);
+
+      // 🔁 Step 1: Remove the request ID from the carpool's joinRequestIds array
+      await carpoolRef.update({
+        "joinRequestIds": FieldValue.arrayRemove([joinRequestId])
+      });
+
+      // 🗑️ Step 2: Delete the join request document
       await joinRequestRef.delete();
 
-      print("❌ Join request cancelled for carpool $carpoolId by $currentUserId");
+      print("❌ Successfully cancelled join request for carpool $carpoolId by $currentUserId");
+
     } catch (e) {
       print("🔥 Error cancelling join request: $e");
-      throw Exception("Failed to cancel join request");
+      throw Exception("Failed to cancel join request.");
     }
   }
+
+
 
 
   /// 📥 Fetches all join requests for carpools owned by the current user
