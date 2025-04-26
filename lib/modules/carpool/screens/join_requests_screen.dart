@@ -40,19 +40,47 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
     }
   }
 
-  /// 📦 Approves a join request
-  Future<void> _approveRequest(String carpoolId, String userId) async {
+  /// 🛡️ Called when the carpool owner approves a join request
+  Future<void> _approveRequest(String carpoolId, String requestId, Map<String, dynamic> requestData) async {
     try {
-      await _firebaseFunctions.approveJoinRequest(carpoolId, userId);
-      _loadJoinRequests(); // Refresh
-    } catch (e) {
-      final message = e.toString().contains("full")
-          ? "This carpool is already at full capacity."
-          : "Failed to approve request.";
+      // Step 1: Show a loading indicator
+      setState(() => _isLoading = true);
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      // Step 2: Extract the list of requested member IDs
+      final List<String> requestedMemberIds = List<String>.from(requestData['requestedMemberIds'] ?? []);
+
+      if (requestedMemberIds.isEmpty) {
+        // 🔴 No family members were selected - show error and stop
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No family members selected in request")),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Step 3: Approve the request by calling FirebaseFunctions
+      await _firebaseFunctions.approveJoinRequest(carpoolId, requestId, requestedMemberIds);
+
+      // Step 4: Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Join request approved!")),
+      );
+
+      // Step 5: Refresh the list of requests
+      await _loadJoinRequests(); // ✅ Corrected from _loadRequests()
+    } catch (e) {
+      // 🔥 Step 6: Handle any errors
+      print("Error approving join request: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to approve join request.")),
+      );
+    } finally {
+      // Step 7: Hide loading indicator
+      setState(() => _isLoading = false);
     }
   }
+
+
 
   /// 🛑 Denies a join request
   Future<void> _denyRequest(String carpoolId, String userId) async {
@@ -126,7 +154,7 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                                         IconButton(
                                           icon: Icon(Icons.check, color: Colors.green),
                                           onPressed: () => _approveRequest(
-                                              carpool['carpoolId'], user['userId']),
+                                              carpool['carpoolId'], carpool['requestId'], carpool),
                                           tooltip: "Approve",
                                         ),
                                         IconButton(

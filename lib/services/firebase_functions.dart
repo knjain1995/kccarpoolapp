@@ -1060,91 +1060,94 @@ class FirebaseFunctions {
 
 
 
- /// ✅ Approves a join request using subcollection and archives the request
-  Future<void> approveJoinRequest(String carpoolId, String requesterUserId) async {
+ /// ✅ Approves a pending join request.
+  /// This will:
+  /// 1. Add selected family members to carpoolParticipants.
+  /// 2. Update joinRequestIds array to remove the approved request ID.
+  /// 3. Update the join request document's status to "approved".
+  Future<void> approveJoinRequest(String carpoolId, String requestId, List<String> memberUserIds) async {
     try {
-      final carpoolRef = FirebaseFirestore.instance.collection("carpools").doc(carpoolId);
-      final requestDocRef = carpoolRef.collection("joinRequests").doc(requesterUserId);
+      final carpoolRef = FirebaseFirestore.instance.collection('carpools').doc(carpoolId);
+      final joinRequestRef = FirebaseFirestore.instance.collection('joinRequests').doc(requestId);
 
-      // 🔍 Step 1: Get join request doc for the user
-      final requestDoc = await requestDocRef.get();
+      // Fetch the current carpool data
+      final carpoolSnapshot = await carpoolRef.get();
 
-      if (!requestDoc.exists) {
-        throw Exception("Join request not found for user.");
+      if (!carpoolSnapshot.exists) {
+        throw Exception("Carpool does not exist.");
       }
 
-      final requestData = requestDoc.data() as Map<String, dynamic>;
-      final List<dynamic> memberIds = requestData['memberUserIds'] ?? [];
+      final carpoolData = carpoolSnapshot.data() as Map<String, dynamic>;
 
-      // 📦 Step 2: Get current carpool data (to verify capacity)
-      final carpoolSnap = await carpoolRef.get();
-      final carpoolData = carpoolSnap.data() as Map<String, dynamic>;
-      final List<dynamic> currentParticipants = carpoolData['carpoolParticipants'] ?? [];
-      final int maxCapacity = carpoolData['carpoolCapacity'] ?? 0;
+      List<dynamic> currentParticipants = carpoolData['carpoolParticipants'] ?? [];
+      List<dynamic> joinRequestIds = carpoolData['joinRequestIds'] ?? [];
 
-      if (currentParticipants.length + memberIds.length > maxCapacity) {
-        throw Exception("Not enough capacity in carpool.");
+      // Step 1: Capacity check
+      int capacity = carpoolData['carpoolCapacity'] ?? 0;
+
+      if (currentParticipants.length + memberUserIds.length > capacity) {
+        throw Exception("Adding these members exceeds carpool capacity.");
       }
 
-      // ➕ Step 3: Add members to carpoolParticipants array
-      await carpoolRef.update({
-        "carpoolParticipants": FieldValue.arrayUnion(memberIds),
+      // Step 2: Perform batched updates
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+
+      // ✅ a) Add new participants
+      batch.update(carpoolRef, {
+        'carpoolParticipants': FieldValue.arrayUnion(memberUserIds),
       });
 
-      // 🗃️ Step 4: Archive the request with approval status
-      await carpoolRef
-          .collection("archivedJoinRequests")
-          .doc(requesterUserId)
-          .set({
-            ...requestData,
-            "status": "approved",
-            "resolvedAt": Timestamp.now(),
-          });
+      // ✅ b) Remove requestId from joinRequestIds
+      batch.update(carpoolRef, {
+        'joinRequestIds': FieldValue.arrayRemove([requestId]),
+      });
 
-      // 🗑️ Step 5: Remove the active request
-      await requestDocRef.delete();
+      // ✅ c) Update join request status to 'approved'
+      batch.update(joinRequestRef, {
+        'status': 'approved',
+      });
 
-      print("✅ Approved join request for $requesterUserId in $carpoolId");
+      await batch.commit();
+
+      print("✅ Successfully approved join request: $requestId");
     } catch (e) {
-      print("🔥 Error approving request: $e");
+      print("🔥 Error approving join request: $e");
       throw Exception("Failed to approve join request.");
     }
   }
 
-  /// ❌ Denies a join request using subcollection and archives it
-  Future<void> denyJoinRequest(String carpoolId, String requesterUserId) async {
+
+  /// ✅ Denies a pending join request.
+  /// This will:
+  /// 1. Remove the request ID from carpool's joinRequestIds array.
+  /// 2. Update the join request document's status to "denied".
+  Future<void> denyJoinRequest(String carpoolId, String requestId) async {
     try {
-      final carpoolRef = FirebaseFirestore.instance.collection("carpools").doc(carpoolId);
-      final requestDocRef = carpoolRef.collection("joinRequests").doc(requesterUserId);
+      final carpoolRef = FirebaseFirestore.instance.collection('carpools').doc(carpoolId);
+      final joinRequestRef = FirebaseFirestore.instance.collection('joinRequests').doc(requestId);
 
-      // 🔍 Step 1: Get the join request doc
-      final requestDoc = await requestDocRef.get();
+      // Step 1: Perform batched updates
+      WriteBatch batch = FirebaseFirestore.instance.batch();
 
-      if (!requestDoc.exists) {
-        throw Exception("Join request not found.");
-      }
+      // ✅ a) Remove requestId from joinRequestIds
+      batch.update(carpoolRef, {
+        'joinRequestIds': FieldValue.arrayRemove([requestId]),
+      });
 
-      final requestData = requestDoc.data() as Map<String, dynamic>;
+      // ✅ b) Update join request status to 'denied'
+      batch.update(joinRequestRef, {
+        'status': 'denied',
+      });
 
-      // 🗃️ Step 2: Archive it as denied
-      await carpoolRef
-          .collection("archivedJoinRequests")
-          .doc(requesterUserId)
-          .set({
-            ...requestData,
-            "status": "denied",
-            "resolvedAt": Timestamp.now(),
-          });
+      await batch.commit();
 
-      // 🗑️ Step 3: Delete the live request
-      await requestDocRef.delete();
-
-      print("❌ Denied join request for $requesterUserId in $carpoolId");
+      print("✅ Successfully denied join request: $requestId");
     } catch (e) {
-      print("🔥 Error denying request: $e");
-      throw Exception("Failed to deny join request for $requesterUserId in $carpoolId");
+      print("🔥 Error denying join request: $e");
+      throw Exception("Failed to deny join request.");
     }
   }
+
 
 
   /// Checks if the current user has already requested to join the given carpool
