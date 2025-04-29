@@ -960,12 +960,7 @@ class FirebaseFunctions {
 
 
 
-  /// 📥 Fetches all join requests for carpools owned by the current user (flat joinRequests structure)
-  ///
-  /// This method:
-  /// - Loads carpools where the logged-in user is the owner.
-  /// - For each carpool, loads its joinRequestIds (list of flat request doc IDs).
-  /// - Merges the request data + requester user data into a single list per carpool.
+  /// 📥 Fetches only "pending" join requests for carpools owned by the current user
   ///
   /// Returns a list of carpool maps, each containing:
   /// {
@@ -999,17 +994,15 @@ class FirebaseFunctions {
 
       List<Map<String, dynamic>> finalResults = [];
 
-      // 🔁 Step 2: Loop through each carpool
+      // 🔁 Step 2: Loop through each carpool owned by the user
       for (final carpoolDoc in carpoolSnapshot.docs) {
         final String carpoolId = carpoolDoc.id;
         final Map<String, dynamic> carpoolData = carpoolDoc.data() as Map<String, dynamic>;
 
-        // ✅ Get request IDs from carpool
         final List<dynamic> requestIds = carpoolData["joinRequestIds"] ?? [];
-
         List<Map<String, dynamic>> joinRequestUsers = [];
 
-        // 🔍 Step 3: Loop through each request ID and load the join request document
+        // 🔁 Step 3: Process each joinRequestId and fetch corresponding joinRequest document
         for (final String requestId in requestIds) {
           final DocumentSnapshot requestDoc = await FirebaseFirestore.instance
               .collection("joinRequests")
@@ -1018,10 +1011,14 @@ class FirebaseFunctions {
 
           if (!requestDoc.exists) continue;
 
-          final requestData = requestDoc.data() as Map<String, dynamic>;
+          final Map<String, dynamic> requestData = requestDoc.data() as Map<String, dynamic>;
+
+          // 🟡 ⛔️ Skip if request is not pending
+          if (requestData["status"] != "pending") continue;
+
           final String requesterId = requestData["requesterId"];
 
-          // 🔍 Step 4: Fetch the requester’s user profile
+          // 🔍 Step 4: Fetch requester's user profile
           final DocumentSnapshot userDoc = await FirebaseFirestore.instance
               .collection("users")
               .doc(requesterId)
@@ -1031,17 +1028,17 @@ class FirebaseFunctions {
 
           final userData = userDoc.data() as Map<String, dynamic>;
 
-          // 🧾 Merge all relevant data
+          // 🧾 Merge join request + requester profile into one object
           joinRequestUsers.add({
             "userId": requesterId,
-            "fullName": userData["fullName"] ?? "Unknown",
+            "fullName": userData["fullName"] ?? "Unknown User",
             "profilePhoto": userData["profilePhoto"],
             "relationToChild": userData["relationToChild"],
-            "memberIds": requestData["memberIds"] ?? [],
+            "memberIds": requestData["memberUserIds"] ?? [],
           });
         }
 
-        // ✅ Step 5: Only add carpools that have requests
+        // 💡 Only include carpools that have at least one pending request
         if (joinRequestUsers.isNotEmpty) {
           finalResults.add({
             ...carpoolData,
@@ -1053,11 +1050,10 @@ class FirebaseFunctions {
 
       return finalResults;
     } catch (e) {
-      print("🔥 Error loading join requests: $e");
-      throw Exception("Failed to load join requests");
+      print("🔥 Error fetching join requests: $e");
+      throw Exception("Failed to fetch join requests.");
     }
   }
-
 
 
  /// ✅ Approves a pending join request.
