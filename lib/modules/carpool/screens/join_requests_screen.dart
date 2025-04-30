@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Your Firestore abstraction
 import 'package:kccarpoolapp/core/routes.dart'; // For navigation
@@ -41,59 +43,60 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
   }
 
   /// 🛡️ Called when the carpool owner approves a join request
-  Future<void> _approveRequest(String carpoolId, String requestId, Map<String, dynamic> requestData) async {
+  /// 🎯 Updated _approveRequest method
+  Future<void> _approveRequest({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+    required List<String> memberUserIds,
+  }) async {
     try {
-      // Step 1: Show a loading indicator
-      setState(() => _isLoading = true);
-
-      // Step 2: Extract the list of requested member IDs
-      final List<String> requestedMemberIds = List<String>.from(requestData['requestedMemberIds'] ?? []);
-
-      if (requestedMemberIds.isEmpty) {
-        // 🔴 No family members were selected - show error and stop
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("No family members selected in request")),
-        );
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      // Step 3: Approve the request by calling FirebaseFunctions
-      await _firebaseFunctions.approveJoinRequest(carpoolId, requestId, requestedMemberIds);
-
-      // Step 4: Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Join request approved!")),
+      await _firebaseFunctions.approveJoinRequest(
+        carpoolId: carpoolId,
+        requesterId: requesterId,
+        requestId: requestId,
+        memberUserIds: memberUserIds,
       );
 
-      // Step 5: Refresh the list of requests
-      await _loadJoinRequests(); // ✅ Corrected from _loadRequests()
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Request approved!')),
+      );
+
+      _loadJoinRequests(); // 🔁 Refresh join requests
     } catch (e) {
-      // 🔥 Step 6: Handle any errors
-      print("Error approving join request: $e");
+      print('Error approving request: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to approve join request.")),
+        SnackBar(content: Text('Failed to approve request.')),
       );
-    } finally {
-      // Step 7: Hide loading indicator
-      setState(() => _isLoading = false);
     }
   }
 
-
-
-  /// 🛑 Denies a join request
-  Future<void> _denyRequest(String carpoolId, String userId) async {
+  /// ❌ Updated _denyRequest method
+  Future<void> _denyRequest({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+  }) async {
     try {
-      await _firebaseFunctions.denyJoinRequest(carpoolId, userId);
-      _loadJoinRequests(); // Refresh the list
-    } catch (e) {
-      print("Denial failed: $e");
+      await _firebaseFunctions.denyJoinRequest(
+        carpoolId: carpoolId,
+        requesterId: requesterId,
+        requestId: requestId,
+      );
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to deny request")),
+        SnackBar(content: Text('Request denied.')),
+      );
+
+      _loadJoinRequests(); // 🔄 Refresh join requests
+    } catch (e) {
+      print('Error denying request: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to deny request.')),
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -139,12 +142,12 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                               // 🔁 Loop over all requesters for this carpool
                               ...requesters.map((user) => ListTile(
                                     leading: CircleAvatar(
-                                      backgroundImage: user['profilePhoto'] != null
-                                          ? NetworkImage(user['profilePhoto'])
-                                          : null,
-                                      child: user['profilePhoto'] == null
-                                          ? Icon(Icons.person)
-                                          : null,
+                                      backgroundImage: user['profilePhoto'] != null && user['profilePhoto'].toString().isNotEmpty
+                                        ? FileImage(File(user['profilePhoto']))
+                                        : null,
+                                      child: (user['profilePhoto'] == null || user['profilePhoto'].toString().isEmpty)
+                                        ? Icon(Icons.person)
+                                        : null,
                                     ),
                                     title: Text(user['fullName']),
                                     subtitle: Text("Relation: ${user['relationToChild']}"),
@@ -153,14 +156,32 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                                       children: [
                                         IconButton(
                                           icon: Icon(Icons.check, color: Colors.green),
-                                          onPressed: () => _approveRequest(
-                                              carpool['carpoolId'], carpool['requestId'], carpool),
+                                          onPressed: () {
+                                            if (user['userId'] != null && user['requestId'] != null && user['memberUserIds'] != null) {
+                                              _approveRequest(
+                                                carpoolId: carpool['carpoolId'],
+                                                requesterId: user['userId'],
+                                                requestId: user['requestId'],
+                                                memberUserIds: List<String>.from(user['memberUserIds']),
+                                              );
+                                            } else {
+                                              print("❗ Missing fields in join request: $user");
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(content: Text("Incomplete join request data. Cannot approve.")),
+                                              );
+                                            }
+                                          },
                                           tooltip: "Approve",
                                         ),
                                         IconButton(
                                           icon: Icon(Icons.close, color: Colors.red),
-                                          onPressed: () => _denyRequest(
-                                              carpool['carpoolId'], user['userId']),
+                                          onPressed: () {
+                                            _denyRequest(
+                                              carpoolId: carpool['carpoolId'],
+                                              requesterId: user['userId'],
+                                              requestId: user['requestId'],
+                                            );
+                                          },
                                           tooltip: "Deny",
                                         ),
                                       ],
