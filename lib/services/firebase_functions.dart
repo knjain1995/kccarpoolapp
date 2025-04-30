@@ -1036,7 +1036,7 @@ class FirebaseFunctions {
             "fullName": userData["fullName"] ?? "Unknown User",
             "profilePhoto": userData["profilePhoto"],
             "relationToChild": userData["relationToChild"],
-            "memberIds": requestData["memberUserIds"] ?? [],
+            "memberUserIds": requestData["memberUserIds"] ?? [],
             "requestId": requestId, // ✅ Include request ID for use in buttons
           });
         }
