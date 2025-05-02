@@ -1015,8 +1015,9 @@ class FirebaseFunctions {
 
           final Map<String, dynamic> requestData = requestDoc.data() as Map<String, dynamic>;
 
+          // ✅ Do NOT skip — we now support all statuses (pending, approved, denied, etc.)
           // 🟡 ⛔️ Skip if request is not pending
-          if (requestData["status"] != "pending") continue;
+          // if (requestData["status"] != "pending") continue;
 
           final String requesterId = requestData["requesterId"];
 
@@ -1038,6 +1039,7 @@ class FirebaseFunctions {
             "relationToChild": userData["relationToChild"],
             "memberUserIds": requestData["memberUserIds"] ?? [],
             "requestId": requestId, // ✅ Include request ID for use in buttons
+            "status": requestData["status"] ?? "pending", // ✅ Make sure this stays
           });
         }
 

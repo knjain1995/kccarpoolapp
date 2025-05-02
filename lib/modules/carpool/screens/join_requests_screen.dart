@@ -97,14 +97,107 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
     }
   }
 
+  /// 🔧 This helper method builds a single list tile for a user who has requested to join a carpool.
+  /// It changes its trailing buttons based on the request status.
+  /// 
+  /// Parameters:
+  /// - `user`: the user map (from Firestore)
+  /// - `carpool`: the carpool map this user wants to join
+  /// - `showApproveDeny`: whether to show ✅ Approve / ❌ Deny buttons (for 'pending' status)
+  /// - `showCancel`: whether to show ❌ Cancel button (for 'approved' status)
+  /// - `showReconsider`: whether to show 🔁 Request Reconsideration button (for 'denied' status)
+  Widget _buildUserTile(
+    dynamic user,
+    Map<String, dynamic> carpool, {
+    bool showApproveDeny = false,
+    bool showCancel = false,
+    bool showReconsider = false,
+  }) {
+    return ListTile(
+      // 👤 Show profile photo or fallback icon
+      leading: CircleAvatar(
+        backgroundImage: user['profilePhoto'] != null && user['profilePhoto'].toString().isNotEmpty
+            ? FileImage(File(user['profilePhoto']))
+            : null,
+        child: (user['profilePhoto'] == null || user['profilePhoto'].toString().isEmpty)
+            ? Icon(Icons.person)
+            : null,
+      ),
 
-  @override
+      // 📛 Display user's full name
+      title: Text(user['fullName']),
+
+      // 👪 Show relation to child (stored in user profile)
+      subtitle: Text("Relation: ${user['relationToChild']}"),
+
+      // 🎯 Buttons (Approve, Deny, Cancel, Reconsider) depending on status
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (showApproveDeny) ...[
+            // ✅ Approve Button
+            IconButton(
+              icon: Icon(Icons.check, color: Colors.green),
+              onPressed: () {
+                _approveRequest(
+                  carpoolId: carpool['carpoolId'],
+                  requesterId: user['userId'],
+                  requestId: user['requestId'],
+                  memberUserIds: List<String>.from(user['memberUserIds']),
+                );
+              },
+              tooltip: "Approve",
+            ),
+            // ❌ Deny Button
+            IconButton(
+              icon: Icon(Icons.close, color: Colors.red),
+              onPressed: () {
+                _denyRequest(
+                  carpoolId: carpool['carpoolId'],
+                  requesterId: user['userId'],
+                  requestId: user['requestId'],
+                );
+              },
+              tooltip: "Deny",
+            ),
+          ],
+          if (showCancel)
+            // ❌ Cancel Participation Button (for approved requests)
+            IconButton(
+              icon: Icon(Icons.cancel, color: Colors.orange),
+              onPressed: () {
+                // 🚧 To be implemented in Enhancement 3
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text("Cancel Participation tapped (not yet implemented)"),
+                ));
+              },
+              tooltip: "Cancel Participation",
+            ),
+          if (showReconsider)
+            // 🔁 Request Reconsideration Button (for denied requests)
+            IconButton(
+              icon: Icon(Icons.refresh, color: Colors.blue),
+              onPressed: () {
+                // 🚧 To be implemented in Enhancement 4
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text("Request Reconsideration tapped (not yet implemented)"),
+                ));
+              },
+              tooltip: "Request Reconsideration",
+            ),
+        ],
+      ),
+    );
+  }
+
+ @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("Join Requests")),
 
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
+
           : _carpoolsWithRequests.isEmpty
               ? Center(
                   child: Column(
@@ -116,6 +209,7 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                     ],
                   ),
                 )
+
               : RefreshIndicator(
                   onRefresh: _loadJoinRequests,
                   child: ListView.builder(
@@ -123,6 +217,11 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                     itemBuilder: (context, index) {
                       final carpool = _carpoolsWithRequests[index];
                       final List<dynamic> requesters = carpool['joinRequestUsers'] ?? [];
+
+                      // Split users by request status
+                      final pendingUsers = requesters.where((u) => u['status'] == 'pending').toList();
+                      final approvedUsers = requesters.where((u) => u['status'] == 'approved').toList();
+                      final deniedUsers = requesters.where((u) => u['status'] == 'denied').toList();
 
                       return Card(
                         margin: EdgeInsets.all(12),
@@ -132,61 +231,47 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 🚌 Carpool name
-                              Text(
-                                carpool['carpoolName'] ?? "Unnamed Carpool",
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              SizedBox(height: 12),
 
-                              // 🔁 Loop over all requesters for this carpool
-                              ...requesters.map((user) => ListTile(
-                                    leading: CircleAvatar(
-                                      backgroundImage: user['profilePhoto'] != null && user['profilePhoto'].toString().isNotEmpty
-                                        ? FileImage(File(user['profilePhoto']))
-                                        : null,
-                                      child: (user['profilePhoto'] == null || user['profilePhoto'].toString().isEmpty)
-                                        ? Icon(Icons.person)
-                                        : null,
-                                    ),
-                                    title: Text(user['fullName']),
-                                    subtitle: Text("Relation: ${user['relationToChild']}"),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: Icon(Icons.check, color: Colors.green),
-                                          onPressed: () {
-                                            if (user['userId'] != null && user['requestId'] != null && user['memberUserIds'] != null) {
-                                              _approveRequest(
-                                                carpoolId: carpool['carpoolId'],
-                                                requesterId: user['userId'],
-                                                requestId: user['requestId'],
-                                                memberUserIds: List<String>.from(user['memberUserIds']),
-                                              );
-                                            } else {
-                                              print("❗ Missing fields in join request: $user");
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(content: Text("Incomplete join request data. Cannot approve.")),
-                                              );
-                                            }
-                                          },
-                                          tooltip: "Approve",
-                                        ),
-                                        IconButton(
-                                          icon: Icon(Icons.close, color: Colors.red),
-                                          onPressed: () {
-                                            _denyRequest(
-                                              carpoolId: carpool['carpoolId'],
-                                              requesterId: user['userId'],
-                                              requestId: user['requestId'],
-                                            );
-                                          },
-                                          tooltip: "Deny",
-                                        ),
-                                      ],
-                                    ),
-                                  )),
+                              // ✅ Pending Section
+                              if (pendingUsers.isNotEmpty) ...[
+                                Text("📥 Pending Requests", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                SizedBox(height: 8),
+                                Text(
+                                  carpool['carpoolName'] ?? "Unnamed Carpool",
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(height: 8),
+                                ...pendingUsers.map((user) =>
+                                  _buildUserTile(user, carpool, showApproveDeny: true)),
+                              ],
+
+                              // ✅ Approved Section
+                              if (approvedUsers.isNotEmpty) ...[
+                                SizedBox(height: 12),
+                                Text("✅ Approved Requests", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                SizedBox(height: 8),
+                                Text(
+                                  carpool['carpoolName'] ?? "Unnamed Carpool",
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(height: 8),
+                                ...approvedUsers.map((user) =>
+                                  _buildUserTile(user, carpool, showCancel: true)),
+                              ],
+
+                              // ✅ Denied Section
+                              if (deniedUsers.isNotEmpty) ...[
+                                SizedBox(height: 12),
+                                Text("⛔ Denied Requests", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                SizedBox(height: 8),
+                                Text(
+                                  carpool['carpoolName'] ?? "Unnamed Carpool",
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(height: 8),
+                                ...deniedUsers.map((user) =>
+                                  _buildUserTile(user, carpool, showReconsider: true)),
+                              ],
                             ],
                           ),
                         ),
