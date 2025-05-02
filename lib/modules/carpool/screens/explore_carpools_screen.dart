@@ -79,7 +79,13 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
             .doc(requestId)
             .get();
 
-        carpool['hasRequested'] = requestSnapshot.exists;
+        // 🔍 Store request status if it exists
+        if (requestSnapshot.exists) {
+          final data = requestSnapshot.data() as Map<String, dynamic>;
+          carpool['joinRequestStatus'] = data['status']; // e.g., "pending", "approved", etc.
+        } else {
+          carpool['joinRequestStatus'] = null; // No request made
+      }
 
         // Step 7: Add the enriched carpool to the final list
         enrichedCarpools.add(carpool);
@@ -219,17 +225,47 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
   /// 🎯 Renders the "Request to Join" / "Cancel Request" button for each carpool.
   Widget _buildActionButton(Map<String, dynamic> carpool) {
     // ✅ New logic: flag comes from Firestore lookup done in `_loadExploreCarpools`
-    final bool alreadyRequested = carpool['hasRequested'] == true;
+    final String? status = carpool['joinRequestStatus'];
 
-    return ElevatedButton.icon(
-      icon: Icon(alreadyRequested ? Icons.cancel : Icons.group_add),
-      label: Text(alreadyRequested ? "Cancel Request" : "Request to Join"),
-      onPressed: () {
-        alreadyRequested
-            ? _handleCancelRequest(carpool['carpoolId']) // 🔁 cancel
-            : _handleJoinRequest(carpool['carpoolId']);  // ➕ send
-      },
-    );
+    if (status == "approved") {
+      // 🪪 Request approved → user joined
+      return ElevatedButton.icon(
+        icon: Icon(Icons.close),
+        label: Text("Cancel Participation"),
+        onPressed: () {
+          // TODO: Implement cancelApprovedJoinRequest()
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Cancel Participation tapped (not yet implemented)")),
+          );
+        },
+      );
+    } else if (status == "denied") {
+      // ⛔ Previously denied
+      return ElevatedButton.icon(
+        icon: Icon(Icons.refresh),
+        label: Text("Request Reconsider"),
+        onPressed: () {
+          // TODO: Implement reconsiderDeniedJoinRequest()
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Reconsider tapped (not yet implemented)")),
+          );
+        },
+      );
+    } else if (status == "pending") {
+      // ⏳ Waiting for approval
+      return ElevatedButton.icon(
+        icon: Icon(Icons.cancel),
+        label: Text("Cancel Request"),
+        onPressed: () => _handleCancelRequest(carpool['carpoolId']),
+      );
+    } else {
+      // 🤝 No request made
+      return ElevatedButton.icon(
+        icon: Icon(Icons.group_add),
+        label: Text("Request to Join"),
+        onPressed: () => _handleJoinRequest(carpool['carpoolId']),
+      );
+    }
   }
 
 

@@ -1787,6 +1787,8 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
 // 📌 Filename: join_requests_screen.dart
 // 📂 Location: modules\carpool\screens
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Your Firestore abstraction
 import 'package:kccarpoolapp/core/routes.dart'; // For navigation
@@ -1929,12 +1931,12 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                               // 🔁 Loop over all requesters for this carpool
                               ...requesters.map((user) => ListTile(
                                     leading: CircleAvatar(
-                                      backgroundImage: user['profilePhoto'] != null
-                                          ? NetworkImage(user['profilePhoto'])
-                                          : null,
-                                      child: user['profilePhoto'] == null
-                                          ? Icon(Icons.person)
-                                          : null,
+                                      backgroundImage: user['profilePhoto'] != null && user['profilePhoto'].toString().isNotEmpty
+                                        ? FileImage(File(user['profilePhoto']))
+                                        : null,
+                                      child: (user['profilePhoto'] == null || user['profilePhoto'].toString().isEmpty)
+                                        ? Icon(Icons.person)
+                                        : null,
                                     ),
                                     title: Text(user['fullName']),
                                     subtitle: Text("Relation: ${user['relationToChild']}"),
@@ -1944,12 +1946,19 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                                         IconButton(
                                           icon: Icon(Icons.check, color: Colors.green),
                                           onPressed: () {
-                                            _approveRequest(
-                                              carpoolId: carpool['carpoolId'],
-                                              requesterId: user['userId'],
-                                              requestId: user['requestId'],
-                                              memberUserIds: user['memberUserIds'],
-                                            );
+                                            if (user['userId'] != null && user['requestId'] != null && user['memberUserIds'] != null) {
+                                              _approveRequest(
+                                                carpoolId: carpool['carpoolId'],
+                                                requesterId: user['userId'],
+                                                requestId: user['requestId'],
+                                                memberUserIds: List<String>.from(user['memberUserIds']),
+                                              );
+                                            } else {
+                                              print("❗ Missing fields in join request: $user");
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(content: Text("Incomplete join request data. Cannot approve.")),
+                                              );
+                                            }
                                           },
                                           tooltip: "Approve",
                                         ),
@@ -4854,7 +4863,8 @@ class FirebaseFunctions {
             "fullName": userData["fullName"] ?? "Unknown User",
             "profilePhoto": userData["profilePhoto"],
             "relationToChild": userData["relationToChild"],
-            "memberIds": requestData["memberUserIds"] ?? [],
+            "memberUserIds": requestData["memberUserIds"] ?? [],
+            "requestId": requestId, // ✅ Include request ID for use in buttons
           });
         }
 
