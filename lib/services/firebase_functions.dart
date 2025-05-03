@@ -1156,6 +1156,42 @@ class FirebaseFunctions {
     }
   }
 
+  /// ❌ Cancels an approved join request and updates both Firestore documents.
+  /// - Updates the joinRequest status to "cancelled"
+  /// - Adds the cancellation reason
+  /// - Removes the requestId from carpool.approvedRequestIds
+  Future<void> cancelApprovedJoinRequest({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+    required String reason,
+  }) async {
+    final joinRequestRef = _firestore.collection('joinRequests').doc(requestId);
+    final carpoolRef = _firestore.collection('carpools').doc(carpoolId);
+
+    try {
+      // Start a Firestore batch to update both documents atomically
+      final batch = _firestore.batch();
+
+      // 🧾 Step 1: Update the join request status
+      batch.update(joinRequestRef, {
+        'status': 'cancelled',
+        'cancellationReason': reason,
+        'cancelledAt': FieldValue.serverTimestamp(),
+      });
+
+      // 🔧 Step 2: Remove the requestId from the carpool's approved list
+      batch.update(carpoolRef, {
+        'approvedRequestIds': FieldValue.arrayRemove([requestId]),
+      });
+
+      // ✅ Commit the batch
+      await batch.commit();
+    } catch (e) {
+      print("🔥 Error cancelling approved request: $e");
+      rethrow;
+    }
+  }
 
   /// Checks if the current user has already requested to join the given carpool
   Future<bool> hasUserRequestedJoin(String carpoolId) async {
@@ -1171,5 +1207,6 @@ class FirebaseFunctions {
 
     return requestDoc.exists;
   }
+
 
 }

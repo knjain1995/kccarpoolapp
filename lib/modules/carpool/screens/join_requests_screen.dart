@@ -97,6 +97,112 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
     }
   }
 
+  /// 🗨️ Shows a dialog for the user to cancel participation in an approved carpool.
+  /// Allows selecting a predefined reason or entering a custom one.
+  Future<void> _showCancelParticipationDialog({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+  }) async {
+    final List<String> predefinedReasons = [
+      "Change of plans",
+      "Duplicate request",
+      "No longer needed",
+    ];
+
+    String? selectedReason;
+    TextEditingController customReasonController = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Cancel Participation"),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 🔘 Radio buttons for predefined reasons
+                  ...predefinedReasons.map((reason) => RadioListTile<String>(
+                        title: Text(reason),
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (value) => setState(() {
+                          selectedReason = value;
+                        }),
+                      )),
+
+                  // ✍️ Optional custom reason
+                  TextField(
+                    controller: customReasonController,
+                    decoration: InputDecoration(
+                      labelText: "Other reason (optional)",
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(), // ❌ Cancel
+              child: Text("Close"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final reason = selectedReason?.isNotEmpty == true
+                    ? selectedReason!
+                    : customReasonController.text.trim();
+                Navigator.of(context).pop(reason);
+              },
+              child: Text("Confirm"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null && result.isNotEmpty) {
+      await _cancelApprovedRequest(
+        carpoolId: carpoolId,
+        requesterId: requesterId,
+        requestId: requestId,
+        reason: result,
+      );
+    }
+  }
+
+  /// 🔁 Cancels an approved join request
+  Future<void> _cancelApprovedRequest({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+    required String reason,
+  }) async {
+    try {
+      await _firebaseFunctions.cancelApprovedJoinRequest(
+        carpoolId: carpoolId,
+        requesterId: requesterId,
+        requestId: requestId,
+        reason: reason,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Participation cancelled.")),
+      );
+
+      _loadJoinRequests(); // 🔄 Refresh screen
+    } catch (e) {
+      print("Error cancelling participation: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to cancel participation.")),
+      );
+    }
+  }
+
+
+
   /// 🔧 This helper method builds a single list tile for a user who has requested to join a carpool.
   /// It changes its trailing buttons based on the request status.
   /// 
@@ -162,14 +268,16 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
             ),
           ],
           if (showCancel)
-            // ❌ Cancel Participation Button (for approved requests)
+                // ❌ Cancel Participation Button (for approved requests)
             IconButton(
               icon: Icon(Icons.cancel, color: Colors.orange),
               onPressed: () {
                 // 🚧 To be implemented in Enhancement 3
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text("Cancel Participation tapped (not yet implemented)"),
-                ));
+                _showCancelParticipationDialog(
+                  carpoolId: carpool['carpoolId'],
+                  requesterId: user['userId'],
+                  requestId: user['requestId'],
+                );
               },
               tooltip: "Cancel Participation",
             ),

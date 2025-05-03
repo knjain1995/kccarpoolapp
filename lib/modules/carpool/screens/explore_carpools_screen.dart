@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Firestore interaction logic
 import 'package:kccarpoolapp/modules/carpool/widgets/carpool_card.dart'; // Existing reusable carpool UI
@@ -82,10 +83,12 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
         // 🔍 Store request status if it exists
         if (requestSnapshot.exists) {
           final data = requestSnapshot.data() as Map<String, dynamic>;
-          carpool['joinRequestStatus'] = data['status']; // e.g., "pending", "approved", etc.
+          carpool['joinRequestStatus'] = data['status']; // Store status
+          carpool['approvedRequestId'] = data['status'] == 'approved' ? requestId : null; // ✅ Store requestId only if approved
         } else {
-          carpool['joinRequestStatus'] = null; // No request made
-      }
+          carpool['joinRequestStatus'] = null;
+          carpool['approvedRequestId'] = null;
+        }
 
         // Step 7: Add the enriched carpool to the final list
         enrichedCarpools.add(carpool);
@@ -228,15 +231,24 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     final String? status = carpool['joinRequestStatus'];
 
     if (status == "approved") {
-      // 🪪 Request approved → user joined
       return ElevatedButton.icon(
         icon: Icon(Icons.close),
         label: Text("Cancel Participation"),
         onPressed: () {
-          // TODO: Implement cancelApprovedJoinRequest()
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Cancel Participation tapped (not yet implemented)")),
-          );
+          final requestId = carpool['approvedRequestId'];
+          final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+          if (requestId != null && currentUserId != null) {
+            _showCancelParticipationDialog(
+              carpoolId: carpool['carpoolId'],
+              requesterId: currentUserId,
+              requestId: requestId,
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Cannot cancel: missing request ID or user ID")),
+            );
+          }
         },
       );
     } else if (status == "denied") {
@@ -289,6 +301,84 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     });
   }
 
+  /// 🗨️ Shows a dialog for the user to cancel participation in an approved carpool.
+  /// Allows selecting a predefined reason or entering a custom one.
+  Future<void> _showCancelParticipationDialog({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+  }) async {
+    final List<String> predefinedReasons = [
+      "Change of plans",
+      "Duplicate request",
+      "No longer needed",
+    ];
+
+    String? selectedReason;
+    TextEditingController customReasonController = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Cancel Participation"),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ...predefinedReasons.map((reason) => RadioListTile<String>(
+                        title: Text(reason),
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (value) => setState(() {
+                          selectedReason = value;
+                        }),
+                      )),
+                  TextField(
+                    controller: customReasonController,
+                    decoration: InputDecoration(
+                      labelText: "Other reason (optional)",
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("Close"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final reason = selectedReason?.isNotEmpty == true
+                    ? selectedReason!
+                    : customReasonController.text.trim();
+                Navigator.of(context).pop(reason);
+              },
+              child: Text("Confirm"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null && result.isNotEmpty) {
+      await _firebaseFunctions.cancelApprovedJoinRequest(
+        carpoolId: carpoolId,
+        requesterId: requesterId,
+        requestId: requestId,
+        reason: result,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Participation cancelled.")),
+      );
+
+      _loadExploreCarpools(); // Refresh the UI
+    }
+  }
 
 
   @override

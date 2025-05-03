@@ -1562,10 +1562,12 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
         // 🔍 Store request status if it exists
         if (requestSnapshot.exists) {
           final data = requestSnapshot.data() as Map<String, dynamic>;
-          carpool['joinRequestStatus'] = data['status']; // e.g., "pending", "approved", etc.
+          carpool['joinRequestStatus'] = data['status']; // Store status
+          carpool['approvedRequestId'] = data['status'] == 'approved' ? requestId : null; // ✅ Store requestId only if approved
         } else {
-          carpool['joinRequestStatus'] = null; // No request made
-      }
+          carpool['joinRequestStatus'] = null;
+          carpool['approvedRequestId'] = null;
+        }
 
         // Step 7: Add the enriched carpool to the final list
         enrichedCarpools.add(carpool);
@@ -1708,15 +1710,22 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     final String? status = carpool['joinRequestStatus'];
 
     if (status == "approved") {
-      // 🪪 Request approved → user joined
       return ElevatedButton.icon(
         icon: Icon(Icons.close),
         label: Text("Cancel Participation"),
         onPressed: () {
-          // TODO: Implement cancelApprovedJoinRequest()
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Cancel Participation tapped (not yet implemented)")),
-          );
+          final requestId = carpool['approvedRequestId'];
+          if (requestId != null && currentUserId != null) {
+            _showCancelParticipationDialog(
+              carpoolId: carpool['carpoolId'],
+              requesterId: currentUserId!,
+              requestId: requestId,
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Cannot cancel: missing request ID or user ID")),
+            );
+          }
         },
       );
     } else if (status == "denied") {
@@ -1922,6 +1931,112 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
     }
   }
 
+  /// 🗨️ Shows a dialog for the user to cancel participation in an approved carpool.
+  /// Allows selecting a predefined reason or entering a custom one.
+  Future<void> _showCancelParticipationDialog({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+  }) async {
+    final List<String> predefinedReasons = [
+      "Change of plans",
+      "Duplicate request",
+      "No longer needed",
+    ];
+
+    String? selectedReason;
+    TextEditingController customReasonController = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Cancel Participation"),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 🔘 Radio buttons for predefined reasons
+                  ...predefinedReasons.map((reason) => RadioListTile<String>(
+                        title: Text(reason),
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (value) => setState(() {
+                          selectedReason = value;
+                        }),
+                      )),
+
+                  // ✍️ Optional custom reason
+                  TextField(
+                    controller: customReasonController,
+                    decoration: InputDecoration(
+                      labelText: "Other reason (optional)",
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(), // ❌ Cancel
+              child: Text("Close"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final reason = selectedReason?.isNotEmpty == true
+                    ? selectedReason!
+                    : customReasonController.text.trim();
+                Navigator.of(context).pop(reason);
+              },
+              child: Text("Confirm"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null && result.isNotEmpty) {
+      await _cancelApprovedRequest(
+        carpoolId: carpoolId,
+        requesterId: requesterId,
+        requestId: requestId,
+        reason: result,
+      );
+    }
+  }
+
+  /// 🔁 Cancels an approved join request
+  Future<void> _cancelApprovedRequest({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+    required String reason,
+  }) async {
+    try {
+      await _firebaseFunctions.cancelApprovedJoinRequest(
+        carpoolId: carpoolId,
+        requesterId: requesterId,
+        requestId: requestId,
+        reason: reason,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Participation cancelled.")),
+      );
+
+      _loadJoinRequests(); // 🔄 Refresh screen
+    } catch (e) {
+      print("Error cancelling participation: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to cancel participation.")),
+      );
+    }
+  }
+
+
+
   /// 🔧 This helper method builds a single list tile for a user who has requested to join a carpool.
   /// It changes its trailing buttons based on the request status.
   /// 
@@ -1987,14 +2102,16 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
             ),
           ],
           if (showCancel)
-            // ❌ Cancel Participation Button (for approved requests)
+                // ❌ Cancel Participation Button (for approved requests)
             IconButton(
               icon: Icon(Icons.cancel, color: Colors.orange),
               onPressed: () {
                 // 🚧 To be implemented in Enhancement 3
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text("Cancel Participation tapped (not yet implemented)"),
-                ));
+                _showCancelParticipationDialog(
+                  carpoolId: carpool['carpoolId'],
+                  requesterId: user['userId'],
+                  requestId: user['requestId'],
+                );
               },
               tooltip: "Cancel Participation",
             ),
@@ -4908,108 +5025,85 @@ class FirebaseFunctions {
   }
 
 
-
-
-  /// 📥 Fetches only "pending" join requests for carpools owned by the current user
-  ///
-  /// Returns a list of carpool maps, each containing:
-  /// {
-  ///   "carpoolId": ...,
-  ///   "carpoolName": ...,
-  ///   ...
-  ///   "joinRequestUsers": [
-  ///     {
-  ///       "userId": ...,         // Requester ID
-  ///       "fullName": ...,       // Requester's name
-  ///       "profilePhoto": ...,   // Requester's profile photo
-  ///       "relationToChild": ...,// Requester's relation
-  ///       "memberIds": [...],    // Members they want to join with
-  ///     },
-  ///     ...
-  ///   ]
-  /// }
+  /// 🔄 Retrieves all join requests for carpools owned by the current user.
+  /// Includes requests with status: pending, approved, denied.
   Future<List<Map<String, dynamic>>> getJoinRequestsForOwner() async {
-    final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return [];
 
-    if (currentUserId == null) {
-      throw Exception("User not logged in.");
-    }
+    List<Map<String, dynamic>> finalResults = [];
 
-    try {
-      // 🔍 Step 1: Fetch all carpools owned by the current user
-      final QuerySnapshot carpoolSnapshot = await FirebaseFirestore.instance
-          .collection("carpools")
-          .where("carpoolOwnerId", isEqualTo: currentUserId)
-          .get();
+    // 🔍 Step 1: Get all carpools where current user is the owner
+    final QuerySnapshot carpoolSnapshot = await _firestore
+        .collection('carpools')
+        .where('carpoolOwnerId', isEqualTo: currentUser.uid)
+        .get();
 
-      List<Map<String, dynamic>> finalResults = [];
+    for (final carpoolDoc in carpoolSnapshot.docs) {
+      final carpoolData = carpoolDoc.data() as Map<String, dynamic>;
+      final String carpoolId = carpoolDoc.id;
 
-      // 🔁 Step 2: Loop through each carpool owned by the user
-      for (final carpoolDoc in carpoolSnapshot.docs) {
-        final String carpoolId = carpoolDoc.id;
-        final Map<String, dynamic> carpoolData = carpoolDoc.data() as Map<String, dynamic>;
+      // 👥 Step 2: Get all request IDs — across all statuses
+      final List<dynamic> pendingIds = carpoolData["joinRequestIds"] ?? [];
+      final List<dynamic> approvedIds = carpoolData["approvedRequestIds"] ?? [];
+      final List<dynamic> deniedIds = carpoolData["deniedRequestIds"] ?? [];
 
-        final List<dynamic> requestIds = carpoolData["joinRequestIds"] ?? [];
-        List<Map<String, dynamic>> joinRequestUsers = [];
+      // 🧮 Combine all into one list to look up
+      final List<String> allRequestIds = [
+        ...pendingIds,
+        ...approvedIds,
+        ...deniedIds,
+      ].cast<String>();
 
-        // 🔁 Step 3: Process each joinRequestId and fetch corresponding joinRequest document
-        for (final String requestId in requestIds) {
-          final DocumentSnapshot requestDoc = await FirebaseFirestore.instance
-              .collection("joinRequests")
-              .doc(requestId)
-              .get();
+      List<Map<String, dynamic>> joinRequestUsers = [];
 
-          if (!requestDoc.exists) continue;
+      for (final String requestId in allRequestIds) {
+        final DocumentSnapshot requestDoc = await _firestore
+            .collection('joinRequests')
+            .doc(requestId)
+            .get();
 
-          final Map<String, dynamic> requestData = requestDoc.data() as Map<String, dynamic>;
+        if (!requestDoc.exists) continue;
 
-          // ✅ Do NOT skip — we now support all statuses (pending, approved, denied, etc.)
-          // 🟡 ⛔️ Skip if request is not pending
-          // if (requestData["status"] != "pending") continue;
+        final requestData = requestDoc.data() as Map<String, dynamic>;
+        final String requesterId = requestData["requesterId"];
 
-          final String requesterId = requestData["requesterId"];
+        // 🧑‍💼 Fetch requester’s user profile
+        final DocumentSnapshot userDoc = await _firestore
+            .collection('users')
+            .doc(requesterId)
+            .get();
 
-          // 🔍 Step 4: Fetch requester's user profile
-          final DocumentSnapshot userDoc = await FirebaseFirestore.instance
-              .collection("users")
-              .doc(requesterId)
-              .get();
+        if (!userDoc.exists) continue;
 
-          if (!userDoc.exists) continue;
+        final userData = userDoc.data() as Map<String, dynamic>;
 
-          final userData = userDoc.data() as Map<String, dynamic>;
-
-          // 🧾 Merge join request + requester profile into one object
-          joinRequestUsers.add({
-            "userId": requesterId,
-            "fullName": userData["fullName"] ?? "Unknown User",
-            "profilePhoto": userData["profilePhoto"],
-            "relationToChild": userData["relationToChild"],
-            "memberUserIds": requestData["memberUserIds"] ?? [],
-            "requestId": requestId, // ✅ Include request ID for use in buttons
-            "status": requestData["status"] ?? "pending", // ✅ Make sure this stays
-          });
-        }
-
-        // 💡 Only include carpools that have at least one pending request
-        if (joinRequestUsers.isNotEmpty) {
-          finalResults.add({
-            ...carpoolData,
-            "carpoolId": carpoolId,
-            "joinRequestUsers": joinRequestUsers,
-          });
-        }
+        // ✅ Build enriched join request entry
+        joinRequestUsers.add({
+          "userId": requesterId,
+          "fullName": userData["fullName"] ?? "Unknown User",
+          "profilePhoto": userData["profilePhoto"],
+          "relationToChild": userData["relationToChild"],
+          "memberUserIds": requestData["memberUserIds"] ?? [],
+          "requestId": requestId,
+          "status": requestData["status"] ?? "pending", // 💡 Used for grouping
+        });
       }
 
-      return finalResults;
-    } catch (e) {
-      print("🔥 Error fetching join requests: $e");
-      throw Exception("Failed to fetch join requests.");
+      // 🧺 Add to final results only if at least one request exists
+      if (joinRequestUsers.isNotEmpty) {
+        finalResults.add({
+          ...carpoolData,
+          "carpoolId": carpoolId,
+          "joinRequestUsers": joinRequestUsers,
+        });
+      }
     }
+
+    return finalResults;
   }
 
-
- /// 📄 Refactored approveJoinRequest function
+  /// 📄 Refactored approveJoinRequest function
   /// This function:
   /// - Adds selected family members to carpoolParticipants
   /// - Removes requestId from joinRequestIds
@@ -5127,6 +5221,42 @@ class FirebaseFunctions {
     }
   }
 
+  /// ❌ Cancels an approved join request and updates both Firestore documents.
+  /// - Updates the joinRequest status to "cancelled"
+  /// - Adds the cancellation reason
+  /// - Removes the requestId from carpool.approvedRequestIds
+  Future<void> cancelApprovedJoinRequest({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+    required String reason,
+  }) async {
+    final joinRequestRef = _firestore.collection('joinRequests').doc(requestId);
+    final carpoolRef = _firestore.collection('carpools').doc(carpoolId);
+
+    try {
+      // Start a Firestore batch to update both documents atomically
+      final batch = _firestore.batch();
+
+      // 🧾 Step 1: Update the join request status
+      batch.update(joinRequestRef, {
+        'status': 'cancelled',
+        'cancellationReason': reason,
+        'cancelledAt': FieldValue.serverTimestamp(),
+      });
+
+      // 🔧 Step 2: Remove the requestId from the carpool's approved list
+      batch.update(carpoolRef, {
+        'approvedRequestIds': FieldValue.arrayRemove([requestId]),
+      });
+
+      // ✅ Commit the batch
+      await batch.commit();
+    } catch (e) {
+      print("🔥 Error cancelling approved request: $e");
+      rethrow;
+    }
+  }
 
   /// Checks if the current user has already requested to join the given carpool
   Future<bool> hasUserRequestedJoin(String carpoolId) async {
@@ -5142,6 +5272,7 @@ class FirebaseFunctions {
 
     return requestDoc.exists;
   }
+
 
 }
 
