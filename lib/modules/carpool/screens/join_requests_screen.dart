@@ -286,10 +286,12 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
             IconButton(
               icon: Icon(Icons.refresh, color: Colors.blue),
               onPressed: () {
-                // 🚧 To be implemented in Enhancement 4
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text("Request Reconsideration tapped (not yet implemented)"),
-                ));
+                _reconsiderRequest(
+                  carpoolId: carpool['carpoolId'],
+                  requesterId: user['userId'],
+                  requestId: user['requestId'],
+                  memberUserIds: List<String>.from(user['memberUserIds']),
+                );
               },
               tooltip: "Request Reconsideration",
             ),
@@ -297,6 +299,35 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
       ),
     );
   }
+
+  /// 🔁 Called when the carpool owner re-approves a previously denied request.
+  Future<void> _reconsiderRequest({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+    required List<String> memberUserIds,
+  }) async {
+    try {
+      await _firebaseFunctions.reconsiderJoinRequest(
+        carpoolId: carpoolId,
+        requesterId: requesterId,
+        requestId: requestId,
+        memberUserIds: memberUserIds,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Request reconsidered and approved.')),
+      );
+
+      _loadJoinRequests(); // 🔄 Refresh join requests screen
+    } catch (e) {
+      print('Error reconsidering request: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to reconsider request.')),
+      );
+    }
+  }
+
 
  @override
   Widget build(BuildContext context) {

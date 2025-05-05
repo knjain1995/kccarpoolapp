@@ -1479,6 +1479,7 @@ class _CreateCarpoolScreenState extends State<CreateCarpoolScreen> {
 // 📂 Location: modules\carpool\screens
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Firestore interaction logic
 import 'package:kccarpoolapp/modules/carpool/widgets/carpool_card.dart'; // Existing reusable carpool UI
@@ -1715,10 +1716,12 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
         label: Text("Cancel Participation"),
         onPressed: () {
           final requestId = carpool['approvedRequestId'];
+          final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
           if (requestId != null && currentUserId != null) {
             _showCancelParticipationDialog(
               carpoolId: carpool['carpoolId'],
-              requesterId: currentUserId!,
+              requesterId: currentUserId,
               requestId: requestId,
             );
           } else {
@@ -1778,6 +1781,84 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     });
   }
 
+  /// 🗨️ Shows a dialog for the user to cancel participation in an approved carpool.
+  /// Allows selecting a predefined reason or entering a custom one.
+  Future<void> _showCancelParticipationDialog({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+  }) async {
+    final List<String> predefinedReasons = [
+      "Change of plans",
+      "Duplicate request",
+      "No longer needed",
+    ];
+
+    String? selectedReason;
+    TextEditingController customReasonController = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Cancel Participation"),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ...predefinedReasons.map((reason) => RadioListTile<String>(
+                        title: Text(reason),
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (value) => setState(() {
+                          selectedReason = value;
+                        }),
+                      )),
+                  TextField(
+                    controller: customReasonController,
+                    decoration: InputDecoration(
+                      labelText: "Other reason (optional)",
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("Close"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final reason = selectedReason?.isNotEmpty == true
+                    ? selectedReason!
+                    : customReasonController.text.trim();
+                Navigator.of(context).pop(reason);
+              },
+              child: Text("Confirm"),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null && result.isNotEmpty) {
+      await _firebaseFunctions.cancelApprovedJoinRequest(
+        carpoolId: carpoolId,
+        requesterId: requesterId,
+        requestId: requestId,
+        reason: result,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Participation cancelled.")),
+      );
+
+      _loadExploreCarpools(); // Refresh the UI
+    }
+  }
 
 
   @override
@@ -2120,10 +2201,12 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
             IconButton(
               icon: Icon(Icons.refresh, color: Colors.blue),
               onPressed: () {
-                // 🚧 To be implemented in Enhancement 4
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text("Request Reconsideration tapped (not yet implemented)"),
-                ));
+                _reconsiderRequest(
+                  carpoolId: carpool['carpoolId'],
+                  requesterId: user['userId'],
+                  requestId: user['requestId'],
+                  memberUserIds: List<String>.from(user['memberUserIds']),
+                );
               },
               tooltip: "Request Reconsideration",
             ),
@@ -2131,6 +2214,35 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
       ),
     );
   }
+
+  /// 🔁 Called when the carpool owner re-approves a previously denied request.
+  Future<void> _reconsiderRequest({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+    required List<String> memberUserIds,
+  }) async {
+    try {
+      await _firebaseFunctions.reconsiderJoinRequest(
+        carpoolId: carpoolId,
+        requesterId: requesterId,
+        requestId: requestId,
+        memberUserIds: memberUserIds,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Request reconsidered and approved.')),
+      );
+
+      _loadJoinRequests(); // 🔄 Refresh join requests screen
+    } catch (e) {
+      print('Error reconsidering request: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to reconsider request.')),
+      );
+    }
+  }
+
 
  @override
   Widget build(BuildContext context) {
@@ -5190,7 +5302,7 @@ class FirebaseFunctions {
       
       // Step 1: Update join request status to "Denied"
       await joinRequestRef.update({
-        'status': 'Denied',
+        'status': 'denied',
       });
 
       // Step 2: Move requestId from joinRequestIds → deniedRequestIds in carpool
@@ -5271,6 +5383,48 @@ class FirebaseFunctions {
       .get();
 
     return requestDoc.exists;
+  }
+
+
+  /// 🔁 Reconsiders a previously denied join request and marks it as approved.
+  /// - Updates joinRequest.status = "approved"
+  /// - Moves requestId from deniedRequestIds → approvedRequestIds
+  /// - Adds the memberUserIds to carpool.carpoolParticipants
+  Future<void> reconsiderJoinRequest({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+    required List<String> memberUserIds,
+  }) async {
+    final carpoolRef = _firestore.collection('carpools').doc(carpoolId);
+    final joinRequestRef = _firestore.collection('joinRequests').doc(requestId);
+
+    try {
+      final batch = _firestore.batch();
+
+      // 📝 Step 1: Update the joinRequest document → mark as approved
+      batch.update(joinRequestRef, {
+        'status': 'approved',
+        'reconsideredAt': FieldValue.serverTimestamp(),
+      });
+
+      // 🚌 Step 2: Update carpool document
+      batch.update(carpoolRef, {
+        // ✅ Add to approved list
+        'approvedRequestIds': FieldValue.arrayUnion([requestId]),
+
+        // ❌ Remove from denied list
+        'deniedRequestIds': FieldValue.arrayRemove([requestId]),
+
+        // 👥 Add member users to carpool participants
+        'carpoolParticipants': FieldValue.arrayUnion(memberUserIds),
+      });
+
+      await batch.commit();
+    } catch (e) {
+      print("🔥 Error reconsidering denied request: $e");
+      rethrow;
+    }
   }
 
 

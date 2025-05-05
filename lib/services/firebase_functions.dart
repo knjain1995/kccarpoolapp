@@ -1125,7 +1125,7 @@ class FirebaseFunctions {
       
       // Step 1: Update join request status to "Denied"
       await joinRequestRef.update({
-        'status': 'Denied',
+        'status': 'denied',
       });
 
       // Step 2: Move requestId from joinRequestIds → deniedRequestIds in carpool
@@ -1206,6 +1206,48 @@ class FirebaseFunctions {
       .get();
 
     return requestDoc.exists;
+  }
+
+
+  /// 🔁 Reconsiders a previously denied join request and marks it as approved.
+  /// - Updates joinRequest.status = "approved"
+  /// - Moves requestId from deniedRequestIds → approvedRequestIds
+  /// - Adds the memberUserIds to carpool.carpoolParticipants
+  Future<void> reconsiderJoinRequest({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+    required List<String> memberUserIds,
+  }) async {
+    final carpoolRef = _firestore.collection('carpools').doc(carpoolId);
+    final joinRequestRef = _firestore.collection('joinRequests').doc(requestId);
+
+    try {
+      final batch = _firestore.batch();
+
+      // 📝 Step 1: Update the joinRequest document → mark as approved
+      batch.update(joinRequestRef, {
+        'status': 'approved',
+        'reconsideredAt': FieldValue.serverTimestamp(),
+      });
+
+      // 🚌 Step 2: Update carpool document
+      batch.update(carpoolRef, {
+        // ✅ Add to approved list
+        'approvedRequestIds': FieldValue.arrayUnion([requestId]),
+
+        // ❌ Remove from denied list
+        'deniedRequestIds': FieldValue.arrayRemove([requestId]),
+
+        // 👥 Add member users to carpool participants
+        'carpoolParticipants': FieldValue.arrayUnion(memberUserIds),
+      });
+
+      await batch.commit();
+    } catch (e) {
+      print("🔥 Error reconsidering denied request: $e");
+      rethrow;
+    }
   }
 
 
