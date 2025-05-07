@@ -5062,13 +5062,20 @@ class FirebaseFunctions {
 
       // Create the join request document with required metadata
       await joinRequestRef.set({
-        "requestId": joinRequestRef.id,           // ✅ Store requestId inside the document
-        "carpoolId": carpoolId,
-        "carpoolOwnerId": await _getCarpoolOwnerId(carpoolId),
-        "requesterId": requesterId,
-        "memberUserIds": memberUserIds,
-        "status": "pending",
-        "timestamp": FieldValue.serverTimestamp(),
+        "requestId": joinRequestRef.id,               // 🔑 Unique request ID
+        "carpoolId": carpoolId,                       // 🚗 Target carpool
+        "carpoolOwnerId": await _getCarpoolOwnerId(carpoolId),           // 👤 Owner of the carpool
+        "requesterId": requesterId,                   // 🧍 Who made the request
+        "memberUserIds": memberUserIds,               // 👪 Selected family members
+        "status": "pending",                          // ⏳ Initial status
+        "timestamp": FieldValue.serverTimestamp(),    // 📆 Time of request creation
+
+        // 🔄 Optional fields (initially blank, but required by Firestore rules)
+        "approvedAt": null,
+        "deniedAt": null,
+        "cancelledAt": null,
+        "cancellationReason": "",
+        "reconsideredAt": null,
       });
 
       // Also update the carpool document to track this join request ID
