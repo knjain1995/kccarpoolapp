@@ -1732,69 +1732,17 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
         },
       );
     } else if (status == "denied") {
-    // ❌ Request was denied – user can now request reconsideration
-    return ElevatedButton.icon(
-      icon: Icon(Icons.refresh),
-      label: Text("Request Reconsideration"),
-      onPressed: () async {
-        try {
-          // 👤 Get the current user ID
-          final currentUser = FirebaseAuth.instance.currentUser;
-          final userId = currentUser?.uid;
-
-          if (userId == null) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("User not signed in."),
-            ));
-            return;
-          }
-
-          // 📄 Step 1: Fetch the old denied request document
-          final requestId = "${carpool['carpoolId']}_$userId";
-
-          final doc = await FirebaseFirestore.instance
-              .collection('joinRequests')
-              .doc(requestId)
-              .get();
-
-          if (!doc.exists) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("Previous request not found."),
-            ));
-            return;
-          }
-
-          final requestData = doc.data()!;
-          final List<String> memberUserIds =
-              List<String>.from(requestData['memberUserIds'] ?? []);
-          final String familyId = requestData['familyId'] ?? "";
-
-          // ✅ Step 2: Call new backend method that safely deletes the old request
-          // and creates a new one with the same members
-          await FirebaseFunctions().reRequestDeniedJoin(
-            carpoolId: carpool['carpoolId'],
-            oldRequestId: requestId,
-            requesterId: userId,
-            memberUserIds: memberUserIds,
-            familyId: familyId,
-          );
-
-          // 🎉 Notify success
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("Re-request sent!"),
-          ));
-
-          // 🔄 Refresh the UI to show updated status
-          _loadExploreCarpools();
-        } catch (e) {
-          print("❌ Error during re-request: $e");
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("Failed to send re-request."),
-          ));
-        }
-      },
-    );
-  } else if (status == "pending") {
+  // ⛔ Request denied – can't re-request directly TBD message to reconsider
+  return ElevatedButton.icon(
+    icon: Icon(Icons.refresh),
+    label: Text("Request Reconsideration"),
+    onPressed: () {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Reconsideration request has been sent to the carpool owner.")),
+      );
+    },
+  );
+} else if (status == "pending") {
       // ⏳ Waiting for approval
       return ElevatedButton.icon(
         icon: Icon(Icons.cancel),
@@ -5482,69 +5430,6 @@ class FirebaseFunctions {
     } catch (e) {
       print("🔥 Error reconsidering denied request: $e");
       rethrow;
-    }
-  }
-
-  /// 🔁 Re-request join for a previously denied request (by requester)
-  Future<void> reRequestDeniedJoin({
-    required String carpoolId,
-    required String oldRequestId,
-    required String requesterId,
-    required List<String> memberUserIds,
-    required String familyId,
-  }) async {
-    final firestore = FirebaseFirestore.instance;
-
-    try {
-      // 📌 Reference to the carpool document
-      final carpoolRef = firestore.collection('carpools').doc(carpoolId);
-
-      // 📌 Reference to the old (denied) join request
-      final oldRequestRef = firestore.collection('joinRequests').doc(oldRequestId);
-
-      // 🧾 Start a Firestore batch for atomic operations
-      final batch = firestore.batch();
-
-      // 1️⃣ Delete the old denied request document
-      batch.delete(oldRequestRef);
-
-      // 2️⃣ Remove the old request ID from deniedRequestIds in the carpool document
-      batch.update(carpoolRef, {
-        'deniedRequestIds': FieldValue.arrayRemove([oldRequestId]),
-      });
-
-      // 3️⃣ Create a new request ID using same format
-      final newRequestId = "${carpoolId}_$requesterId";
-      final newRequestRef = firestore.collection('joinRequests').doc(newRequestId);
-
-      // 4️⃣ Create new join request document (with same members, new timestamp)
-      batch.set(newRequestRef, {
-        'requestId': newRequestId,
-        'carpoolId': carpoolId,
-        'requesterId': requesterId,
-        'memberUserIds': memberUserIds,
-        'familyId': familyId,
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-
-        // 🧠 Optionally pre-create future-action fields (e.g., reconsideredAt, cancelledAt) to avoid permission issues
-        'reconsideredAt': null,
-        'cancelledAt': null,
-        'cancellationReason': null,
-      });
-
-      // 5️⃣ Add new request ID to joinRequestIds in the carpool
-      batch.update(carpoolRef, {
-        'joinRequestIds': FieldValue.arrayUnion([newRequestId]),
-      });
-
-      // ✅ Commit batch
-      await batch.commit();
-      print("✅ Re-request submitted successfully");
-
-    } catch (e) {
-      print("❌ Error during re-request: $e");
-      throw Exception("Failed to send join request.");
     }
   }
 

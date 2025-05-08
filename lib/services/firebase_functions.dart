@@ -1177,6 +1177,16 @@ class FirebaseFunctions {
     final carpoolRef = _firestore.collection('carpools').doc(carpoolId);
 
     try {
+      // 🔍 Fetch the join request to get memberUserIds
+      final joinRequestSnapshot = await joinRequestRef.get();
+      final joinRequestData = joinRequestSnapshot.data();
+
+      if (joinRequestData == null || !joinRequestData.containsKey("memberUserIds")) {
+        throw Exception("Missing memberUserIds in join request.");
+      }
+
+      final List<String> memberUserIds = List<String>.from(joinRequestData["memberUserIds"]);
+
       // Start a Firestore batch to update both documents atomically
       final batch = _firestore.batch();
 
@@ -1187,18 +1197,24 @@ class FirebaseFunctions {
         'cancelledAt': FieldValue.serverTimestamp(),
       });
 
-      // 🔧 Step 2: Remove the requestId from the carpool's approved list
+      // 🧼 Step 2: Remove the request ID from the carpool's approved list
       batch.update(carpoolRef, {
         'approvedRequestIds': FieldValue.arrayRemove([requestId]),
       });
 
-      // ✅ Commit the batch
+      // 🧽 Step 3: Remove memberUserIds from carpoolParticipants
+      batch.update(carpoolRef, {
+        'carpoolParticipants': FieldValue.arrayRemove(memberUserIds),
+      });
+
+      // ✅ Step 4: Commit the changes
       await batch.commit();
     } catch (e) {
       print("🔥 Error cancelling approved request: $e");
       rethrow;
     }
   }
+
 
   /// Checks if the current user has already requested to join the given carpool
   Future<bool> hasUserRequestedJoin(String carpoolId) async {
