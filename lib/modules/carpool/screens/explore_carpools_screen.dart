@@ -252,69 +252,17 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
         },
       );
     } else if (status == "denied") {
-    // ❌ Request was denied – user can now request reconsideration
-    return ElevatedButton.icon(
-      icon: Icon(Icons.refresh),
-      label: Text("Request Reconsideration"),
-      onPressed: () async {
-        try {
-          // 👤 Get the current user ID
-          final currentUser = FirebaseAuth.instance.currentUser;
-          final userId = currentUser?.uid;
-
-          if (userId == null) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("User not signed in."),
-            ));
-            return;
-          }
-
-          // 📄 Step 1: Fetch the old denied request document
-          final requestId = "${carpool['carpoolId']}_$userId";
-
-          final doc = await FirebaseFirestore.instance
-              .collection('joinRequests')
-              .doc(requestId)
-              .get();
-
-          if (!doc.exists) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("Previous request not found."),
-            ));
-            return;
-          }
-
-          final requestData = doc.data()!;
-          final List<String> memberUserIds =
-              List<String>.from(requestData['memberUserIds'] ?? []);
-          final String familyId = requestData['familyId'] ?? "";
-
-          // ✅ Step 2: Call new backend method that safely deletes the old request
-          // and creates a new one with the same members
-          await FirebaseFunctions().reRequestDeniedJoin(
-            carpoolId: carpool['carpoolId'],
-            oldRequestId: requestId,
-            requesterId: userId,
-            memberUserIds: memberUserIds,
-            familyId: familyId,
-          );
-
-          // 🎉 Notify success
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("Re-request sent!"),
-          ));
-
-          // 🔄 Refresh the UI to show updated status
-          _loadExploreCarpools();
-        } catch (e) {
-          print("❌ Error during re-request: $e");
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("Failed to send re-request."),
-          ));
-        }
-      },
-    );
-  } else if (status == "pending") {
+  // ⛔ Request denied – can't re-request directly TBD message to reconsider
+  return ElevatedButton.icon(
+    icon: Icon(Icons.refresh),
+    label: Text("Request Reconsideration"),
+    onPressed: () {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Reconsideration request has been sent to the carpool owner.")),
+      );
+    },
+  );
+} else if (status == "pending") {
       // ⏳ Waiting for approval
       return ElevatedButton.icon(
         icon: Icon(Icons.cancel),
