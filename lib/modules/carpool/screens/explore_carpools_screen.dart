@@ -269,18 +269,20 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
         label: Text("Cancel Request"),
         onPressed: () => _handleCancelRequest(carpool['carpoolId']),
       );
-    } else if (status == "cancelled") {
-      // 🚫 Participation was cancelled — allow user to request reconsideration
-      return ElevatedButton.icon(
-        icon: Icon(Icons.refresh),
-        label: Text("Request Reconsideration"),
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Your request has been flagged to the carpool owner.")),
-          );
-        },
-      );
-    } else if (status == "cancelled" || status == "denied") {
+    }
+    //  else if (status == "cancelled") {
+    //   // 🚫 Participation was cancelled — allow user to request reconsideration
+    //   return ElevatedButton.icon(
+    //     icon: Icon(Icons.refresh),
+    //     label: Text("Request Reconsideration"),
+    //     onPressed: () {
+    //       ScaffoldMessenger.of(context).showSnackBar(
+    //         SnackBar(content: Text("Your request has been flagged to the carpool owner.")),
+    //       );
+    //     },
+    //   );
+    // }
+     else if (status == "cancelled" || status == "denied") {
       // 🔁 User was denied or cancelled participation — allow them to request reconsideration
       return ElevatedButton.icon(
         icon: Icon(Icons.refresh),
