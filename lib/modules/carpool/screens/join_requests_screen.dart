@@ -361,6 +361,7 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                       final pendingUsers = requesters.where((u) => u['status'] == 'pending').toList();
                       final approvedUsers = requesters.where((u) => u['status'] == 'approved').toList();
                       final deniedUsers = requesters.where((u) => u['status'] == 'denied').toList();
+                      final reconsiderationUsers = requesters.where((u) => u['status'] == 'reconsideration_requested').toList();
 
                       return Card(
                         margin: EdgeInsets.all(12),
@@ -410,6 +411,16 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                                 SizedBox(height: 8),
                                 ...deniedUsers.map((user) =>
                                   _buildUserTile(user, carpool, showReconsider: true)),
+                              ],
+
+                              // 🔁 Reconsideration Requests Section
+                              if (reconsiderationUsers.isNotEmpty) ...[
+                                Text("🔁 Reconsideration Requests",
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                ...reconsiderationUsers.map((user) =>
+                                  _buildUserTile(user, carpool, showApproveDeny: true)
+                                ),
+                                SizedBox(height: 12),
                               ],
                             ],
                           ),

@@ -1273,4 +1273,54 @@ class FirebaseFunctions {
     }
   }
 
+
+  /// 🔁 This function is triggered when a user taps the "Request Reconsideration" button
+  /// for a previously denied or cancelled join request.
+  ///
+  /// It updates the status field in the joinRequests document to "reconsideration_requested"
+  /// so the carpool owner can see and take action (approve/deny again).
+  Future<void> requestReconsideration(String carpoolId) async {
+    // Step 1️⃣: Get the current logged-in user's ID
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    // 🔒 If the user is not logged in (null), we throw an error
+    if (currentUser == null) {
+      throw Exception("User not logged in.");
+    }
+
+    final requesterId = currentUser.uid;
+
+    // Step 2️⃣: Construct the join request document ID using carpoolId + requesterId
+    // Format: {carpoolId}_{userId}
+    final requestId = "${carpoolId}_$requesterId";
+
+    // Step 3️⃣: Reference the document in the flat joinRequests collection
+    final requestRef = _firestore.collection("joinRequests").doc(requestId);
+
+    // Step 4️⃣: Fetch the current join request document from Firestore
+    final snapshot = await requestRef.get();
+
+    // ❌ If the document does not exist, it means the request was never submitted
+    if (!snapshot.exists) {
+      throw Exception("Join request not found.");
+    }
+
+    // Step 5️⃣: Extract the current status from the document data
+    final data = snapshot.data();
+    final currentStatus = data?['status'];
+
+    // ❗ We allow reconsideration only for previously denied or cancelled requests
+    if (currentStatus != "denied" && currentStatus != "cancelled") {
+      throw Exception("Only denied or cancelled requests can be reconsidered.");
+    }
+
+    // Step 6️⃣: Update the join request's status to "reconsideration_requested"
+    await requestRef.update({
+      "status": "reconsideration_requested",
+    });
+
+    // ✅ Log to console for debugging purposes
+    print("🔁 Reconsideration requested for $requestId by $requesterId");
+  }
+
 }

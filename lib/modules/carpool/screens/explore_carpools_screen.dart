@@ -280,6 +280,33 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
           );
         },
       );
+    } else if (status == "cancelled" || status == "denied") {
+      // 🔁 User was denied or cancelled participation — allow them to request reconsideration
+      return ElevatedButton.icon(
+        icon: Icon(Icons.refresh),
+        label: Text("Request Reconsideration"),
+        onPressed: () async {
+          try {
+            // 🛠️ Call the backend function to update the joinRequest status
+            await FirebaseFunctions().requestReconsideration(carpool['carpoolId']);
+
+            // ✅ Show success message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Reconsideration request sent.")),
+            );
+
+            // 🔄 Reload the explore screen to reflect updated state
+            _loadExploreCarpools();
+          } catch (e) {
+            // ❌ If something goes wrong, show an error message
+            print("❌ Error during reconsideration: $e");
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Failed to request reconsideration.")),
+            );
+          }
+        },
+      );
     } else {
       // 🤝 No request made
       return ElevatedButton.icon(
