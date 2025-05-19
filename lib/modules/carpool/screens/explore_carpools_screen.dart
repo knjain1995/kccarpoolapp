@@ -340,84 +340,68 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     });
   }
 
-  /// 🗨️ Shows a dialog for the user to cancel participation in an approved carpool.
-  /// Allows selecting a predefined reason or entering a custom one.
+  /// ❌ Shows the cancel participation confirmation dialog and performs the cancellation.
+  /// Now supports updated backend method that requires memberUserIds.
   Future<void> _showCancelParticipationDialog({
     required String carpoolId,
     required String requesterId,
     required String requestId,
   }) async {
-    final List<String> predefinedReasons = [
-      "Change of plans",
-      "Duplicate request",
-      "No longer needed",
-    ];
-
-    String? selectedReason;
-    TextEditingController customReasonController = TextEditingController();
-
-    final result = await showDialog<String>(
+    final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Cancel Participation"),
-          content: StatefulBuilder(
-            builder: (context, setState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ...predefinedReasons.map((reason) => RadioListTile<String>(
-                        title: Text(reason),
-                        value: reason,
-                        groupValue: selectedReason,
-                        onChanged: (value) => setState(() {
-                          selectedReason = value;
-                        }),
-                      )),
-                  TextField(
-                    controller: customReasonController,
-                    decoration: InputDecoration(
-                      labelText: "Other reason (optional)",
-                    ),
-                  ),
-                ],
-              );
-            },
+      builder: (context) => AlertDialog(
+        title: Text("Cancel Participation"),
+        content: Text("Are you sure you want to cancel your participation in this carpool?"),
+        actions: [
+          TextButton(
+            child: Text("No"),
+            onPressed: () => Navigator.pop(context, false),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text("Close"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final reason = selectedReason?.isNotEmpty == true
-                    ? selectedReason!
-                    : customReasonController.text.trim();
-                Navigator.of(context).pop(reason);
-              },
-              child: Text("Confirm"),
-            ),
-          ],
-        );
-      },
+          TextButton(
+            child: Text("Yes"),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
     );
 
-    if (result != null && result.isNotEmpty) {
-      await _firebaseFunctions.cancelApprovedJoinRequest(
+    if (confirm != true) return;
+
+    try {
+      // 🔍 Step 1: Fetch the join request to extract memberUserIds
+      final doc = await FirebaseFirestore.instance
+          .collection("joinRequests")
+          .doc(requestId)
+          .get();
+
+      if (!doc.exists || !(doc.data()?['memberUserIds'] is List)) {
+        throw Exception("Unable to fetch members from join request.");
+      }
+
+      final List<String> memberUserIds =
+          List<String>.from(doc.data()?['memberUserIds'] ?? []);
+
+      // 🔧 Step 2: Call cancel method with all required fields
+      await FirebaseFunctions().cancelApprovedJoinRequest(
         carpoolId: carpoolId,
-        requesterId: requesterId,
         requestId: requestId,
-        reason: result,
+        memberUserIds: memberUserIds,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Participation cancelled.")),
       );
 
-      _loadExploreCarpools(); // Refresh the UI
+      // 🔁 Optional refresh
+      _loadExploreCarpools?.call();
+    } catch (e) {
+      print("Error cancelling participation: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to cancel participation.")),
+      );
     }
   }
+
 
 
   @override
