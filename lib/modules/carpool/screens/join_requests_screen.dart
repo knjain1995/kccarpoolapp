@@ -153,7 +153,7 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
       // 🔁 Optional refresh
       _loadJoinRequests?.call();
     } catch (e) {
-      print("Error cancelling participation: $e");
+      print("Error cancelling participation:   $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to cancel participation.")),
       );
