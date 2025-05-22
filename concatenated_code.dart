@@ -1507,87 +1507,78 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     _loadExploreCarpools(); // Load available carpools wfrequestToJoinCarpoolhen screen loads
   }
 
-  /// 🔍 Loads carpools from other families for the Explore screen.
-  /// This function performs the following:
-  /// 1. Fetch carpools the user can explore (i.e. not created by their family and not already joined)
-  /// 2. Enrich each carpool with required display fields for the CarpoolCard:
-  ///    - driverName, driverPhoto
-  ///    - vehicleMakeModel, vehicleImage
-  ///    - resolvedParticipants (full participant info)
-  /// 3. Set the enriched list in state for rendering
-  /// 🔍 Loads carpools created by other families and enriches each for display.
-  /// Adds a flag `hasRequested` by checking the flat joinRequests collection.
+  /// 🔄 Loads carpools from Firestore, along with the user's join request status and flags.
   Future<void> _loadExploreCarpools() async {
-    // Step 1: Show loading spinner
     setState(() => _isLoading = true);
 
     try {
-      final String userId = _firebaseFunctions.getCurrentUserId() ?? "";
-      final List<Map<String, dynamic>> exploreCarpools =
-          await _firebaseFunctions.getExploreCarpools();
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) throw Exception("User not logged in");
 
-      final List<Map<String, dynamic>> enrichedCarpools = [];
+      final userId = currentUser.uid;
+      final requestIdPattern = "_$userId";
 
-      for (final carpool in exploreCarpools) {
-        // Step 2: Enrich carpool with vehicle info
-        final vehicleData =
-            await _firebaseFunctions.getVehicleById(carpool['carpoolVehicleId']);
+      final carpoolsQuery = await FirebaseFirestore.instance
+          .collection("carpools")
+          .where("carpoolOwnerId", isNotEqualTo: userId) // exclude own carpools
+          .get();
 
-        // Step 3: Enrich carpool with driver info
-        final driverData = await _firebaseFunctions.getDriverById(
-          driverId: carpool['carpoolDriverId'],
-        );
+      final List<Map<String, dynamic>> result = [];
 
-        // Step 4: Resolve carpoolParticipants for display
-        final resolvedParticipants = await _firebaseFunctions.getCarpoolParticipants(
-          carpoolDriverId: carpool['carpoolDriverId'],
-          participantIds: List<String>.from(carpool['carpoolParticipants'] ?? []),
-        );
+      for (var doc in carpoolsQuery.docs) {
+        final carpool = doc.data();
+        carpool['carpoolId'] = doc.id;
 
-        // Step 5: Populate required fields for CarpoolCard widget
-        carpool['driverName'] = driverData?['fullName'] ?? "Unknown Driver";
-        carpool['driverPhoto'] = driverData?['profilePhoto'];
-        carpool['vehicleMakeModel'] = vehicleData != null
-            ? "${vehicleData['vehicleMake']} ${vehicleData['vehicleModel']}"
-            : "Unknown Vehicle";
-        carpool['vehicleImage'] = vehicleData?['vehicleImage'];
-        carpool['resolvedParticipants'] = resolvedParticipants;
-
-        // ✅ NEW: Step 6 — Check if this user has already requested to join this carpool
-        final String requestId = '${carpool['carpoolId']}_$userId';
-        final DocumentSnapshot requestSnapshot = await FirebaseFirestore.instance
-            .collection('joinRequests')
+        final requestId = "${doc.id}_$userId";
+        final joinRequestSnap = await FirebaseFirestore.instance
+            .collection("joinRequests")
             .doc(requestId)
             .get();
 
-        // 🔍 Store request status if it exists
-        if (requestSnapshot.exists) {
-          final data = requestSnapshot.data() as Map<String, dynamic>;
-          carpool['joinRequestStatus'] = data['status']; // Store status
-          carpool['approvedRequestId'] = data['status'] == 'approved' ? requestId : null; // ✅ Store requestId only if approved
-        } else {
-          carpool['joinRequestStatus'] = null;
-          carpool['approvedRequestId'] = null;
+        // Default to "not requested"
+        carpool['joinRequestStatus'] = null;
+        carpool['approvedRequestId'] = null;
+        carpool['isCancelled'] = false;
+        carpool['isReconsiderationRequested'] = false;
+
+        if (joinRequestSnap.exists) {
+          final data = joinRequestSnap.data()!;
+          final status = data['status'];
+          carpool['joinRequestStatus'] = status;
+
+          if (status == 'approved') {
+            carpool['approvedRequestId'] = requestId;
+          }
         }
 
-        // Step 7: Add the enriched carpool to the final list
-        enrichedCarpools.add(carpool);
+        // 🔍 Check if the requestId is in cancelled or reconsideration arrays
+        final cancelledIds = List<String>.from(carpool['cancelledRequestIds'] ?? []);
+        final reconsiderationIds = List<String>.from(carpool['reconsiderationRequestIds'] ?? []);
+
+        if (cancelledIds.contains(requestId)) {
+          carpool['isCancelled'] = true;
+        }
+
+        if (reconsiderationIds.contains(requestId)) {
+          carpool['isReconsiderationRequested'] = true;
+        }
+
+        result.add(carpool);
       }
 
-      // Step 8: Save data to state and stop loading
       setState(() {
-        _carpools = enrichedCarpools;
-        _currentUserId = userId;
+        _carpools = result;
       });
     } catch (e) {
       print("Error loading explore carpools: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to load carpools")),
+        SnackBar(content: Text("Failed to load carpools.")),
       );
     } finally {
       setState(() => _isLoading = false);
     }
   }
+
 
 
   /// 🔄 Fetches the current user's family members (excluding self)
@@ -1704,19 +1695,22 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     }
   }
 
-  /// 🔁 Builds dynamic button based on whether the user has requested to join already
-  /// 🎯 Renders the "Request to Join" / "Cancel Request" button for each carpool.
-  Widget _buildActionButton(Map<String, dynamic> carpool) {
-    // ✅ New logic: flag comes from Firestore lookup done in `_loadExploreCarpools`
-    final String? status = carpool['joinRequestStatus'];
 
+  /// 🧠 Determines which action button to show based on the user's request status with this carpool.
+  Widget _buildActionButton(Map<String, dynamic> carpool) {
+    final String? status = carpool['joinRequestStatus'];
+    final bool isCancelled = carpool['isCancelled'] == true;
+    final bool isReconsiderationRequested = carpool['isReconsiderationRequested'] == true;
+
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    // ✅ Approved — show Cancel Participation
     if (status == "approved") {
       return ElevatedButton.icon(
         icon: Icon(Icons.close),
         label: Text("Cancel Participation"),
         onPressed: () {
           final requestId = carpool['approvedRequestId'];
-          final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
           if (requestId != null && currentUserId != null) {
             _showCancelParticipationDialog(
@@ -1726,77 +1720,55 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Cannot cancel: missing request ID or user ID")),
+              SnackBar(content: Text("Missing request or user ID")),
             );
           }
         },
       );
-    } else if (status == "denied") {
-  // ⛔ Request denied – can't re-request directly TBD message to reconsider
-  return ElevatedButton.icon(
-    icon: Icon(Icons.refresh),
-    label: Text("Request Reconsideration"),
-    onPressed: () {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Reconsideration request has been sent to the carpool owner.")),
+    }
+
+    // 🔁 Reconsideration already requested — disable button
+    if (status == "reconsideration_requested" || isReconsiderationRequested) {
+      return ElevatedButton.icon(
+        icon: Icon(Icons.hourglass_top),
+        label: Text("Reconsideration Sent"),
+        onPressed: null, // ❌ Disabled
       );
-    },
-  );
-} else if (status == "pending") {
-      // ⏳ Waiting for approval
+    }
+
+    // ❌ Request was cancelled — disable button
+    if (status == "cancelled" || isCancelled) {
+      return ElevatedButton.icon(
+        icon: Icon(Icons.cancel),
+        label: Text("Request Cancelled"),
+        onPressed: null, // ❌ Disabled
+      );
+    }
+
+    // ⏳ Pending — show Cancel Request
+    if (status == "pending") {
       return ElevatedButton.icon(
         icon: Icon(Icons.cancel),
         label: Text("Cancel Request"),
         onPressed: () => _handleCancelRequest(carpool['carpoolId']),
       );
     }
-    //  else if (status == "cancelled") {
-    //   // 🚫 Participation was cancelled — allow user to request reconsideration
-    //   return ElevatedButton.icon(
-    //     icon: Icon(Icons.refresh),
-    //     label: Text("Request Reconsideration"),
-    //     onPressed: () {
-    //       ScaffoldMessenger.of(context).showSnackBar(
-    //         SnackBar(content: Text("Your request has been flagged to the carpool owner.")),
-    //       );
-    //     },
-    //   );
-    // }
-     else if (status == "cancelled" || status == "denied") {
-      // 🔁 User was denied or cancelled participation — allow them to request reconsideration
+
+    // ⛔ Denied — show Request Reconsideration
+    if (status == "denied") {
       return ElevatedButton.icon(
         icon: Icon(Icons.refresh),
         label: Text("Request Reconsideration"),
-        onPressed: () async {
-          try {
-            // 🛠️ Call the backend function to update the joinRequest status
-            await FirebaseFunctions().requestReconsideration(carpool['carpoolId']);
-
-            // ✅ Show success message
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Reconsideration request sent.")),
-            );
-
-            // 🔄 Reload the explore screen to reflect updated state
-            _loadExploreCarpools();
-          } catch (e) {
-            // ❌ If something goes wrong, show an error message
-            print("❌ Error during reconsideration: $e");
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Failed to request reconsideration.")),
-            );
-          }
-        },
-      );
-    } else {
-      // 🤝 No request made
-      return ElevatedButton.icon(
-        icon: Icon(Icons.group_add),
-        label: Text("Request to Join"),
-        onPressed: () => _handleJoinRequest(carpool['carpoolId']),
+        onPressed: () => FirebaseFunctions().requestReconsideration(carpool['carpoolId']),
       );
     }
+
+    // 🤝 No request exists — show Request to Join
+    return ElevatedButton.icon(
+      icon: Icon(Icons.group_add),
+      label: Text("Request to Join"),
+      onPressed: () => _handleJoinRequest(carpool['carpoolId']),
+    );
   }
 
 
@@ -4769,8 +4741,10 @@ class FirebaseFunctions {
         "requestedUserIds": [],
         "invitedUserIds": [],
         "joinRequestIds": [], // 🔐 Ensures Firestore allows appending to this later
-        'approvedRequestIds': [],     // 🆕 Initialize empty approved requests list
-        'deniedRequestIds': [],       // 🆕 Initialize empty denied requests list
+        "approvedRequestIds": [],     // 🆕 Initialize empty approved requests list
+        "deniedRequestIds": [],       // 🆕 Initialize empty denied requests list
+        "cancelledRequestIds": [],               // ✅ Add this
+        "reconsiderationRequestIds": [],         // ✅ Add this
       });
 
       print("✅ Carpool successfully created in flat structure!");

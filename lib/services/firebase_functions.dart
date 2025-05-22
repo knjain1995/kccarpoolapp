@@ -1045,129 +1045,175 @@ class FirebaseFunctions {
     return finalResults;
   }
 
-  //// ✅ Approves a join request and updates both the joinRequests and carpool documents.
-  /// This supports both normal and reconsideration-based approvals.
+  /// 📄 Refactored approveJoinRequest function
+  /// This function:
+  /// - Adds selected family members to carpoolParticipants
+  /// - Removes requestId from joinRequestIds
+  /// - Adds requestId to approvedRequestIds
+  /// - Updates the join request document status to 'approved'
+  /// 
+  /// 🚀 All done atomically in a single Firestore batch
+
   Future<void> approveJoinRequest({
     required String carpoolId,
-    required String requestId,
     required String requesterId,
+    required String requestId,
     required List<String> memberUserIds,
   }) async {
     try {
-      final batch = _firestore.batch();
+      final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+      final WriteBatch batch = _firestore.batch();
 
-      final requestRef = _firestore.collection("joinRequests").doc(requestId);
-      final carpoolRef = _firestore.collection("carpools").doc(carpoolId);
+      // 🔗 Reference to the carpool document
+      final DocumentReference carpoolRef = _firestore.collection('carpools').doc(carpoolId);
 
-      // Step 1️⃣: Update the join request status to "approved"
-      batch.update(requestRef, {
-        "status": "approved",
-        "approvedAt": FieldValue.serverTimestamp(),
-      });
+      // 🔗 Reference to the join request document
+      final DocumentReference joinRequestRef = _firestore.collection('joinRequests').doc(requestId);
 
-      // Step 2️⃣: Update the carpool document
+      // ➡️ 1. Add selected family members to carpoolParticipants
       batch.update(carpoolRef, {
-        // ✅ Add to approved list
-        "approvedRequestIds": FieldValue.arrayUnion([requestId]),
-        // ✅ Add member users to carpoolParticipants
-        "carpoolParticipants": FieldValue.arrayUnion(memberUserIds),
-        // 🔻 Remove from reconsideration list if applicable
-        "reconsiderationRequestIds": FieldValue.arrayRemove([requestId]),
-        // 🔻 Remove from denied list if it was previously denied
-        "deniedRequestIds": FieldValue.arrayRemove([requestId]),
+        'carpoolParticipants': FieldValue.arrayUnion(memberUserIds),
       });
 
-      // 💥 Commit the batch
+      // ➡️ 2. Remove this join request from pending requests
+      batch.update(carpoolRef, {
+        'joinRequestIds': FieldValue.arrayRemove([requestId]),
+      });
+
+      // ➡️ 3. Add this request to approved requests
+      batch.update(carpoolRef, {
+        'approvedRequestIds': FieldValue.arrayUnion([requestId]),
+      });
+
+      // ➡️ 4. Update the status field inside the joinRequests document
+      batch.update(joinRequestRef, {
+        'status': 'approved',
+      });
+
+      // 🚀 Commit all batched writes atomically
       await batch.commit();
 
-      print("✅ Approved request $requestId for carpool $carpoolId.");
+      print('✅ Successfully approved join request with ID: $requestId');
     } catch (e) {
-      print("❌ Error approving join request: $e");
-      throw Exception("Failed to approve join request.");
+      print('🔥 Error approving join request: $e');
+      throw Exception('Failed to approve join request.');
     }
   }
 
 
 
-
-  /// ❌ Denies a join request and ensures cleanup across carpool tracking arrays.
-  /// Supports both original and reconsidered join requests.
+  /// ❌ Deny a join request for a carpool
+  ///
+  /// This function will:
+  /// - Update the join request's status to "Denied"
+  /// - Move the request ID into deniedRequestIds[] array of the carpool
+  /// - Remove the request ID from joinRequestIds[] array of the carpool
   Future<void> denyJoinRequest({
     required String carpoolId,
     required String requesterId,
     required String requestId,
   }) async {
     try {
-      final batch = _firestore.batch();
+      final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+        
+      if (currentUserId == null) {
+        throw Exception("User not logged in.");
+      }
 
-      final requestRef = _firestore.collection("joinRequests").doc(requestId);
-      final carpoolRef = _firestore.collection("carpools").doc(carpoolId);
-
-      // Step 1️⃣: Update join request document
-      batch.update(requestRef, {
-        "status": "denied",
-        "deniedAt": FieldValue.serverTimestamp(),
+      final carpoolRef = FirebaseFirestore.instance.collection('carpools').doc(carpoolId);
+      final joinRequestRef = FirebaseFirestore.instance.collection('joinRequests').doc(requestId);
+      
+      // ✅ DEBUG PRINTS: Show what we are trying to update
+      print("🛠 Denying Join Request:");
+      print("Request ID: $requestId");
+      print("Carpool ID: $carpoolId");
+      print("Requester User ID: $requesterId");
+      print("Updater (current user): $currentUserId");
+      
+      // Step 1: Update join request status to "Denied"
+      await joinRequestRef.update({
+        'status': 'denied',
       });
 
-      // Step 2️⃣: Update carpool document
-      batch.update(carpoolRef, {
-        // ✅ Move requestId to denied list
-        "deniedRequestIds": FieldValue.arrayUnion([requestId]),
-        // 🔻 Remove from reconsideration list if applicable
-        "reconsiderationRequestIds": FieldValue.arrayRemove([requestId]),
+      // Step 2: Move requestId from joinRequestIds → deniedRequestIds in carpool
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final carpoolSnapshot = await transaction.get(carpoolRef);
+        final carpoolData = carpoolSnapshot.data();
+
+        if (carpoolData == null) {
+          throw Exception('Carpool does not exist.');
+        }
+
+        List<dynamic> joinRequestIds = carpoolData['joinRequestIds'] ?? [];
+        List<dynamic> deniedRequestIds = carpoolData['deniedRequestIds'] ?? [];
+
+        joinRequestIds.remove(requestId);
+        deniedRequestIds.add(requestId);
+
+        transaction.update(carpoolRef, {
+          'joinRequestIds': joinRequestIds,
+          'deniedRequestIds': deniedRequestIds,
+        });
       });
 
-      // 💥 Commit changes
-      await batch.commit();
-
-      print("❌ Denied join request $requestId for carpool $carpoolId.");
+      print('✅ Denied join request $requestId for carpool $carpoolId.');
     } catch (e) {
-      print("🔥 Error denying request: $e");
-      throw Exception("Failed to deny join request.");
+      print('🔥 Error denying join request: $e');
+      throw Exception('Failed to deny join request.');
     }
   }
 
-
-  /// ❌ Cancels an approved join request and moves it to cancelledRequestIds
+  /// ❌ Cancels an approved join request and updates both Firestore documents.
+  /// - Updates the joinRequest status to "cancelled"
+  /// - Adds the cancellation reason
+  /// - Removes the requestId from carpool.approvedRequestIds
   Future<void> cancelApprovedJoinRequest({
     required String carpoolId,
+    required String requesterId,
     required String requestId,
-    required List<String> memberUserIds,
+    required String reason,
   }) async {
+    final joinRequestRef = _firestore.collection('joinRequests').doc(requestId);
+    final carpoolRef = _firestore.collection('carpools').doc(carpoolId);
+
     try {
+      // 🔍 Fetch the join request to get memberUserIds
+      final joinRequestSnapshot = await joinRequestRef.get();
+      final joinRequestData = joinRequestSnapshot.data();
+
+      if (joinRequestData == null || !joinRequestData.containsKey("memberUserIds")) {
+        throw Exception("Missing memberUserIds in join request.");
+      }
+
+      final List<String> memberUserIds = List<String>.from(joinRequestData["memberUserIds"]);
+
+      // Start a Firestore batch to update both documents atomically
       final batch = _firestore.batch();
 
-      final carpoolRef = _firestore.collection("carpools").doc(carpoolId);
-      final requestRef = _firestore.collection("joinRequests").doc(requestId);
+      // 🧾 Step 1: Update the join request status
+      batch.update(joinRequestRef, {
+        'status': 'cancelled',
+        'cancellationReason': reason,
+        'cancelledAt': FieldValue.serverTimestamp(),
+      });
 
-      // 🔄 1. Remove requestId from approved list
+      // 🧼 Step 2: Remove the request ID from the carpool's approved list
       batch.update(carpoolRef, {
-        "approvedRequestIds": FieldValue.arrayRemove([requestId]),
-
-        // 👥 2. Remove members from carpoolParticipants
-        "carpoolParticipants": FieldValue.arrayRemove(memberUserIds),
-
-        // ➕ 3. Add requestId to cancelledRequestIds for tracking
-        "cancelledRequestIds": FieldValue.arrayUnion([requestId]),
+        'approvedRequestIds': FieldValue.arrayRemove([requestId]),
       });
 
-      // 📝 4. Update the join request status to 'cancelled'
-      batch.update(requestRef, {
-        "status": "cancelled",
-        "cancellationReason": "Manually cancelled", // or pass custom reason
-        "cancelledAt": FieldValue.serverTimestamp(),
+      // 🧽 Step 3: Remove memberUserIds from carpoolParticipants
+      batch.update(carpoolRef, {
+        'carpoolParticipants': FieldValue.arrayRemove(memberUserIds),
       });
 
-      // ✅ Commit all updates in one batch
+      // ✅ Step 4: Commit the changes
       await batch.commit();
-
-      print("🚫 Cancelled approved request $requestId and moved to cancelledRequestIds.");
     } catch (e) {
-      print("❌ Error cancelling approved request: $e");
-      throw Exception("Failed to cancel participation.");
+      print("🔥 Error cancelling approved request: $e");
+      rethrow;
     }
   }
-
 
 
   /// Checks if the current user has already requested to join the given carpool
@@ -1228,62 +1274,53 @@ class FirebaseFunctions {
   }
 
 
-  /// 🔁 This method handles the user's request to reconsider a previously denied or cancelled join request.
-  /// It updates the joinRequest status, and reorganizes the requestId between Firestore tracking arrays.
+  /// 🔁 This function is triggered when a user taps the "Request Reconsideration" button
+  /// for a previously denied or cancelled join request.
+  ///
+  /// It updates the status field in the joinRequests document to "reconsideration_requested"
+  /// so the carpool owner can see and take action (approve/deny again).
   Future<void> requestReconsideration(String carpoolId) async {
+    // Step 1️⃣: Get the current logged-in user's ID
     final currentUser = FirebaseAuth.instance.currentUser;
 
-    // ❗ Ensure user is logged in
+    // 🔒 If the user is not logged in (null), we throw an error
     if (currentUser == null) {
       throw Exception("User not logged in.");
     }
 
     final requesterId = currentUser.uid;
+
+    // Step 2️⃣: Construct the join request document ID using carpoolId + requesterId
+    // Format: {carpoolId}_{userId}
     final requestId = "${carpoolId}_$requesterId";
 
+    // Step 3️⃣: Reference the document in the flat joinRequests collection
     final requestRef = _firestore.collection("joinRequests").doc(requestId);
-    final carpoolRef = _firestore.collection("carpools").doc(carpoolId);
 
-    try {
-      // Step 1️⃣: Load the join request document
-      final requestSnap = await requestRef.get();
-      if (!requestSnap.exists) {
-        throw Exception("Join request not found.");
-      }
+    // Step 4️⃣: Fetch the current join request document from Firestore
+    final snapshot = await requestRef.get();
 
-      // Step 2️⃣: Check current status
-      final status = requestSnap.data()?['status'];
-      if (status != "denied" && status != "cancelled") {
-        throw Exception("Only denied or cancelled requests can be reconsidered.");
-      }
-
-      // Step 3️⃣: Prepare batch for atomic updates
-      final batch = _firestore.batch();
-
-      // 🟢 Update the join request status and timestamp
-      batch.update(requestRef, {
-        "status": "reconsideration_requested",
-        "reconsiderationRequestedAt": FieldValue.serverTimestamp(),
-      });
-
-      // 🔁 Move the requestId into reconsiderationRequestIds
-      batch.update(carpoolRef, {
-        "reconsiderationRequestIds": FieldValue.arrayUnion([requestId]),
-        // 🔻 Remove from deniedRequestIds (if it exists)
-        "deniedRequestIds": FieldValue.arrayRemove([requestId]),
-        // 🔻 Remove from cancelledRequestIds (if it exists)
-        "cancelledRequestIds": FieldValue.arrayRemove([requestId]),
-      });
-
-      // 💥 Commit the changes
-      await batch.commit();
-
-      print("🔁 Request $requestId marked as reconsideration_requested and arrays updated.");
-    } catch (e) {
-      print("❌ Error during reconsideration request: $e");
-      throw Exception("Failed to request reconsideration.");
+    // ❌ If the document does not exist, it means the request was never submitted
+    if (!snapshot.exists) {
+      throw Exception("Join request not found.");
     }
+
+    // Step 5️⃣: Extract the current status from the document data
+    final data = snapshot.data();
+    final currentStatus = data?['status'];
+
+    // ❗ We allow reconsideration only for previously denied or cancelled requests
+    if (currentStatus != "denied" && currentStatus != "cancelled") {
+      throw Exception("Only denied or cancelled requests can be reconsidered.");
+    }
+
+    // Step 6️⃣: Update the join request's status to "reconsideration_requested"
+    await requestRef.update({
+      "status": "reconsideration_requested",
+    });
+
+    // ✅ Log to console for debugging purposes
+    print("🔁 Reconsideration requested for $requestId by $requesterId");
   }
 
-
-} 
+}

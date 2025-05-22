@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:kccarpoolapp/services/firebase_functions.dart'; // Your Firestore abstraction
 import 'package:kccarpoolapp/core/routes.dart'; // For navigation
@@ -98,68 +97,109 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
     }
   }
 
-  /// ❌ Shows the cancel participation confirmation dialog and performs the cancellation.
-  /// Now supports updated backend method that requires memberUserIds.
+  /// 🗨️ Shows a dialog for the user to cancel participation in an approved carpool.
+  /// Allows selecting a predefined reason or entering a custom one.
   Future<void> _showCancelParticipationDialog({
     required String carpoolId,
     required String requesterId,
     required String requestId,
   }) async {
-    final confirm = await showDialog<bool>(
+    final List<String> predefinedReasons = [
+      "Change of plans",
+      "Duplicate request",
+      "No longer needed",
+    ];
+
+    String? selectedReason;
+    TextEditingController customReasonController = TextEditingController();
+
+    final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Cancel Participation"),
-        content: Text("Are you sure you want to cancel your participation in this carpool?"),
-        actions: [
-          TextButton(
-            child: Text("No"),
-            onPressed: () => Navigator.pop(context, false),
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Cancel Participation"),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 🔘 Radio buttons for predefined reasons
+                  ...predefinedReasons.map((reason) => RadioListTile<String>(
+                        title: Text(reason),
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (value) => setState(() {
+                          selectedReason = value;
+                        }),
+                      )),
+
+                  // ✍️ Optional custom reason
+                  TextField(
+                    controller: customReasonController,
+                    decoration: InputDecoration(
+                      labelText: "Other reason (optional)",
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
-          TextButton(
-            child: Text("Yes"),
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(), // ❌ Cancel
+              child: Text("Close"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final reason = selectedReason?.isNotEmpty == true
+                    ? selectedReason!
+                    : customReasonController.text.trim();
+                Navigator.of(context).pop(reason);
+              },
+              child: Text("Confirm"),
+            ),
+          ],
+        );
+      },
     );
 
-    if (confirm != true) return;
-
-    try {
-      // 🔍 Step 1: Fetch the join request to extract memberUserIds
-      final doc = await FirebaseFirestore.instance
-          .collection("joinRequests")
-          .doc(requestId)
-          .get();
-
-      if (!doc.exists || !(doc.data()?['memberUserIds'] is List)) {
-        throw Exception("Unable to fetch members from join request.");
-      }
-
-      final List<String> memberUserIds =
-          List<String>.from(doc.data()?['memberUserIds'] ?? []);
-
-      // 🔧 Step 2: Call cancel method with all required fields
-      await FirebaseFunctions().cancelApprovedJoinRequest(
+    if (result != null && result.isNotEmpty) {
+      await _cancelApprovedRequest(
         carpoolId: carpoolId,
+        requesterId: requesterId,
         requestId: requestId,
-        memberUserIds: memberUserIds,
+        reason: result,
+      );
+    }
+  }
+
+  /// 🔁 Cancels an approved join request
+  Future<void> _cancelApprovedRequest({
+    required String carpoolId,
+    required String requesterId,
+    required String requestId,
+    required String reason,
+  }) async {
+    try {
+      await _firebaseFunctions.cancelApprovedJoinRequest(
+        carpoolId: carpoolId,
+        requesterId: requesterId,
+        requestId: requestId,
+        reason: reason,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Participation cancelled.")),
       );
 
-      // 🔁 Optional refresh
-      _loadJoinRequests?.call();
+      _loadJoinRequests(); // 🔄 Refresh screen
     } catch (e) {
-      print("Error cancelling participation:   $e");
+      print("Error cancelling participation: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Failed to cancel participation.")),
       );
     }
   }
-
 
 
 
