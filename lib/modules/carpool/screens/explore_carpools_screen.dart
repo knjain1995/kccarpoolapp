@@ -224,10 +224,8 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
     }
   }
 
-  /// 🔁 Builds dynamic button based on whether the user has requested to join already
-  /// 🎯 Renders the "Request to Join" / "Cancel Request" button for each carpool.
+  /// 🔁 Builds the correct action button based on the current user's join request status.
   Widget _buildActionButton(Map<String, dynamic> carpool) {
-    // ✅ New logic: flag comes from Firestore lookup done in `_loadExploreCarpools`
     final String? status = carpool['joinRequestStatus'];
 
     if (status == "approved") {
@@ -236,7 +234,7 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
         label: Text("Cancel Participation"),
         onPressed: () {
           final requestId = carpool['approvedRequestId'];
-          final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
           if (requestId != null && currentUserId != null) {
             _showCancelParticipationDialog(
@@ -251,66 +249,39 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
           }
         },
       );
-    } else if (status == "denied") {
-  // ⛔ Request denied – can't re-request directly TBD message to reconsider
-  return ElevatedButton.icon(
-    icon: Icon(Icons.refresh),
-    label: Text("Request Reconsideration"),
-    onPressed: () {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Reconsideration request has been sent to the carpool owner.")),
-      );
-    },
-  );
-} else if (status == "pending") {
-      // ⏳ Waiting for approval
-      return ElevatedButton.icon(
-        icon: Icon(Icons.cancel),
-        label: Text("Cancel Request"),
-        onPressed: () => _handleCancelRequest(carpool['carpoolId']),
-      );
-    }
-    //  else if (status == "cancelled") {
-    //   // 🚫 Participation was cancelled — allow user to request reconsideration
-    //   return ElevatedButton.icon(
-    //     icon: Icon(Icons.refresh),
-    //     label: Text("Request Reconsideration"),
-    //     onPressed: () {
-    //       ScaffoldMessenger.of(context).showSnackBar(
-    //         SnackBar(content: Text("Your request has been flagged to the carpool owner.")),
-    //       );
-    //     },
-    //   );
-    // }
-     else if (status == "cancelled" || status == "denied") {
-      // 🔁 User was denied or cancelled participation — allow them to request reconsideration
+    } else if (status == "cancelled" || status == "denied") {
       return ElevatedButton.icon(
         icon: Icon(Icons.refresh),
         label: Text("Request Reconsideration"),
         onPressed: () async {
           try {
-            // 🛠️ Call the backend function to update the joinRequest status
             await FirebaseFunctions().requestReconsideration(carpool['carpoolId']);
-
-            // ✅ Show success message
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text("Reconsideration request sent.")),
             );
-
-            // 🔄 Reload the explore screen to reflect updated state
             _loadExploreCarpools();
           } catch (e) {
-            // ❌ If something goes wrong, show an error message
             print("❌ Error during reconsideration: $e");
-
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text("Failed to request reconsideration.")),
             );
           }
         },
       );
+    } else if (status == "reconsideration_requested") {
+      return ElevatedButton.icon(
+        icon: Icon(Icons.hourglass_empty),
+        label: Text("Pending Reconsideration"),
+        onPressed: null,
+      );
+    } else if (status == "pending") {
+      return ElevatedButton.icon(
+        icon: Icon(Icons.cancel),
+        label: Text("Cancel Request"),
+        onPressed: () => _handleCancelRequest(carpool['carpoolId']),
+      );
     } else {
-      // 🤝 No request made
+      // 🆕 No request yet — this correctly calls the existing join request method.
       return ElevatedButton.icon(
         icon: Icon(Icons.group_add),
         label: Text("Request to Join"),
@@ -318,6 +289,7 @@ class _ExploreCarpoolsScreenState extends State<ExploreCarpoolsScreen> {
       );
     }
   }
+
 
 
   /// Loads join request states for the current user across all explore carpools

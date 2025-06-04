@@ -361,6 +361,7 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                       final pendingUsers = requesters.where((u) => u['status'] == 'pending').toList();
                       final approvedUsers = requesters.where((u) => u['status'] == 'approved').toList();
                       final deniedUsers = requesters.where((u) => u['status'] == 'denied').toList();
+                      final cancelledUsers = requesters.where((u) => u['status'] == 'cancelled').toList();
                       final reconsiderationUsers = requesters.where((u) => u['status'] == 'reconsideration_requested').toList();
 
                       return Card(
@@ -411,6 +412,20 @@ class _JoinRequestsScreenState extends State<JoinRequestsScreen> {
                                 SizedBox(height: 8),
                                 ...deniedUsers.map((user) =>
                                   _buildUserTile(user, carpool, showReconsider: true)),
+                              ],
+
+                              // ❌ Cancelled Requests Section
+                              if (cancelledUsers.isNotEmpty) ...[
+                                SizedBox(height: 12),
+                                Text("❌ Cancelled Requests", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                SizedBox(height: 8),
+                                Text(
+                                  carpool['carpoolName'] ?? "Unnamed Carpool",
+                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(height: 8),
+                                ...cancelledUsers.map((user) =>
+                                  _buildUserTile(user, carpool, showApproveDeny: false)), // Or add special button logic
                               ],
 
                               // 🔁 Reconsideration Requests Section
